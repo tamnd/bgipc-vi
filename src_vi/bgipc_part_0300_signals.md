@@ -7,129 +7,127 @@
 <!-- Signals -->
 <!-- ======================================================= -->
 
-# Signals
+# Signals (Tín hiệu)
 
-There is a sometimes useful method for one process to bug another:
-signals. Basically, one process can "raise" a signal and have it
-delivered to another process. The destination process's signal handler
-(just a function) is invoked and the process can handle it.
+Có một phương pháp đôi khi rất hữu ích để một tiến trình "quấy rầy" tiến
+trình khác: signal. Về cơ bản, một tiến trình có thể "raise" (phát) một
+signal và gửi nó đến một tiến trình khác. Signal handler (chỉ là một hàm)
+của tiến trình đích sẽ được gọi và tiến trình có thể xử lý nó.
 
-This is an interestingly-different mechanism than you might be used to
-in that your program might be happily humming along doing whatever it
-wants, and then a signal is raised and your program is interrupted. Your
-code might be mid-function calculating π to 1.21 giga-decimal places and
-suddenly it stops doing that, and control passes to another function
-you've written (the _signal handler_) to handle the signal.
+Đây là một cơ chế thú vị khác với những gì bạn có thể quen: chương trình
+của bạn đang chạy vui vẻ làm công việc của nó, và rồi một signal được
+phát và chương trình của bạn bị ngắt. Code của bạn có thể đang ở giữa
+một hàm tính π đến 1,21 tỷ chữ số thập phân, và đột nhiên nó dừng lại
+và quyền điều khiển chuyển sang một hàm khác bạn đã viết (là _signal
+handler_) để xử lý signal.
 
-And when the signal handler returns, control jumps back to your π
-calculation and continues where it left off. Or maybe the program just
-terminates! It depends on the signal and if-and-how you've decided to
-handle it.
+Và khi signal handler trả về, quyền điều khiển nhảy lại vào phép tính π
+của bạn và tiếp tục từ chỗ đã dừng. Hoặc có thể chương trình chỉ đơn
+giản là kết thúc! Tất cả phụ thuộc vào signal và việc bạn có quyết định
+xử lý nó hay không và xử lý như thế nào.
 
-The devil's in the details, of course, and in actuality what you are
-permitted to do safely inside your signal handler is rather limited.
-Nevertheless, signals provide a useful service.
+Tất nhiên, ma quỷ ở trong các chi tiết, và trên thực tế những gì bạn
+được phép thực hiện an toàn bên trong signal handler của mình khá hạn
+chế. Dẫu vậy, signal vẫn cung cấp một dịch vụ hữu ích.
 
-For example, one process might want to temporarily stop another one, and
-this can be done by sending the signal `SIGSTOP` to that process. To
-continue, the process has to receive signal `SIGCONT`[^847f]. How does
-the process know to do this when it receives a certain signal? Well,
-many signals are predefined and the process has a default signal handler
-to deal with it.
+Ví dụ, một tiến trình có thể muốn tạm thời dừng một tiến trình khác, và
+điều này có thể được thực hiện bằng cách gửi signal `SIGSTOP` đến tiến
+trình đó. Để tiếp tục, tiến trình phải nhận signal `SIGCONT`[^847f]. Làm
+sao tiến trình biết phải làm điều này khi nhận được một signal nhất định?
+Thực ra nhiều signal được định nghĩa sẵn và tiến trình có một default
+signal handler để xử lý chúng.
 
-[^847f]: Fun fact: when you hit `CTRL-Z` in the terminal while you're
-    running a program in the foreground, it sends a `SIGSTOP` to that
-    process and the shell reports that it is stopped or suspended. If
-    you then type `fg`, it'll bring that process back to the foreground
-    and send it `SIGCONT` to keep running where it left off.
+[^847f]: Mẹo vui: khi bạn nhấn `CTRL-Z` trong terminal trong khi đang
+    chạy một chương trình ở foreground, nó sẽ gửi `SIGSTOP` đến tiến
+    trình đó và shell báo cáo rằng nó đã bị dừng hoặc tạm dừng. Nếu
+    bạn gõ `fg`, nó sẽ đưa tiến trình đó trở lại foreground và gửi
+    `SIGCONT` để tiếp tục chạy từ chỗ đã dừng.
 
-A default handler? Yes. Take `SIGINT` for example. This is the interrupt
-signal that a process receives when the user hits `CTRL-C`. The default
-signal handler for `SIGINT` causes the process to exit! Sound familiar?
-Well, as you can imagine, you can override the `SIGINT` signal to do
-whatever you want (or nothing at all!)  You could have your process
-print "Interrupt?! No way, Jose!" and go about its merry business.
+Default handler? Đúng vậy. Lấy `SIGINT` làm ví dụ. Đây là signal ngắt
+mà một tiến trình nhận được khi người dùng nhấn `CTRL-C`. Default signal
+handler cho `SIGINT` khiến tiến trình thoát! Nghe quen không? Thực ra,
+như bạn có thể tưởng tượng, bạn có thể ghi đè signal `SIGINT` để làm bất
+cứ điều gì bạn muốn (hoặc không làm gì cả!) Bạn có thể khiến tiến trình
+in ra "Interrupt?! No way, Jose!" và tiếp tục công việc vui vẻ của nó.
 
-So now you know that you can have your process respond to just about any
-signal in just about any way you want. Naturally, there are exceptions
-because otherwise it would be too easy to understand. Take the ever
-popular `SIGKILL`, signal #9. Have you ever typed "`kill -9 nnnn`" to
-kill a runaway process number `nnnn`? You were sending it `SIGKILL`. Now
-you might also remember that no process can get out of a "`kill -9`",
-and you would be correct. `SIGKILL` is one of the signals you **can't**
-add your own signal handler for. The aforementioned `SIGSTOP` is also in
-this category.
+Vậy giờ bạn biết rằng bạn có thể khiến tiến trình của mình phản ứng với
+hầu hết mọi signal theo bất kỳ cách nào bạn muốn. Tất nhiên, có những
+ngoại lệ vì nếu không thì sẽ quá dễ để hiểu. Hãy xem `SIGKILL` nổi
+tiếng, signal số 9. Bạn đã từng gõ "`kill -9 nnnn`" để tắt một tiến
+trình số `nnnn` đang chạy loạn không? Bạn đã gửi cho nó `SIGKILL`. Bạn
+cũng có thể nhớ rằng không tiến trình nào có thể thoát khỏi "`kill -9`",
+và điều đó hoàn toàn đúng. `SIGKILL` là một trong những signal bạn
+**không thể** thêm signal handler riêng. `SIGSTOP` đã đề cập ở trên
+cũng thuộc danh mục này.
 
-(Aside: you often use the Unix `kill` command without specifying a
-signal to send...so what signal is it? The answer: `SIGTERM`. You can
-write your own handler for `SIGTERM` so your process won't respond to a
-regular "`kill`", and the user must then use "`kill -9`" to end the
-process.)
+(Ghi chú thêm: bạn thường dùng lệnh Unix `kill` mà không chỉ định signal
+cần gửi...vậy signal đó là gì? Câu trả lời: `SIGTERM`. Bạn có thể viết
+handler riêng cho `SIGTERM` để tiến trình của bạn không phản ứng với lệnh
+"`kill`" thông thường, và người dùng phải dùng "`kill -9`" để kết thúc
+tiến trình.)
 
-Are all the signals predefined? What if you want to send a signal that
-has significance that only you understand to a process? There are two
-signals that aren't reserved: `SIGUSR1` and `SIGUSR2`. You are free to
-use these for whatever you want and handle them in whatever way you
-choose. (For example, my CD player program might respond to `SIGUSR1` by
-advancing to the next track. In this way, I could control it from the
-command line by typing "`kill -SIGUSR1 nnnn`".)
+Tất cả signal đều được định nghĩa sẵn không? Sẽ ra sao nếu bạn muốn gửi
+một signal có ý nghĩa chỉ bạn hiểu đến một tiến trình? Có hai signal
+không được đặt trước: `SIGUSR1` và `SIGUSR2`. Bạn hoàn toàn tự do dùng
+chúng cho bất cứ điều gì và xử lý chúng theo bất kỳ cách nào bạn chọn.
+(Ví dụ, chương trình CD player của tôi có thể phản ứng với `SIGUSR1` bằng
+cách chuyển sang bài hát tiếp theo. Bằng cách đó, tôi có thể điều khiển
+nó từ dòng lệnh bằng cách gõ "`kill -SIGUSR1 nnnn`".)
 
-## Catching Signals for Fun and Profit!
+## Bắt Signal để Vui và Kiếm Lợi!
 
-As you can guess the Unix "kill" command is one way to send signals to a
-process. By sheer unbelievable coincidence, there is a system call
-called `kill()` which does the same thing. It takes for its argument a
-signal number (as defined in `signal.h`) and a process ID. Also, there
-is a library routine called `raise()` which can be used to raise a
-signal within the same process.
+Như bạn có thể đoán, lệnh Unix "kill" là một cách để gửi signal đến một
+tiến trình. Thật trùng hợp không thể tin được, có một system call gọi là
+`kill()` làm điều tương tự. Nó nhận một số signal (như được định nghĩa
+trong `signal.h`) và một process ID làm đối số. Ngoài ra, còn có một thư
+viện routine gọi là `raise()` có thể dùng để phát một signal trong chính
+tiến trình đó.
 
-The burning question remains: how do you catch a speeding `SIGTERM`?
-You need to call `sigaction()` and tell it all the gritty details about
-which signal you want to catch and which function you want to call to
-handle it.
+Câu hỏi nóng bỏng vẫn còn đó: làm thế nào để bạn bắt một `SIGTERM` đang
+bay? Bạn cần gọi `sigaction()` và cho nó biết tất cả các chi tiết về
+signal bạn muốn bắt và hàm bạn muốn gọi để xử lý nó.
 
-Here's the `sigaction()` breakdown:
+Đây là phân tích `sigaction()`:
 
 ``` {.c}
 int sigaction(int sig, const struct sigaction *act,
               struct sigaction *oact);
 ```
 
-The first parameter, `sig` is which signal to catch. This can be
-(probably "should" be) a symbolic name from `signal.h` along the lines
-of `SIGINT`. That's the easy bit.
+Tham số đầu tiên, `sig` là signal cần bắt. Đây có thể là (có lẽ "nên"
+là) một tên ký hiệu từ `signal.h` kiểu như `SIGINT`. Đó là phần dễ.
 
-The next field, `act` is a pointer to a `struct sigaction` which has a
-bunch of fields that you can fill in to control the behavior of the
-signal handler. (A pointer to the signal handler function itself
-included in the `struct`.)
+Trường tiếp theo, `act` là con trỏ đến một `struct sigaction` có nhiều
+trường bạn có thể điền vào để kiểm soát hành vi của signal handler. (Con
+trỏ đến chính hàm signal handler được bao gồm trong `struct`.)
 
-Lastly `oact` can be `NULL`, but if not, it returns the _old_ signal
-handler information that was in place before. This is useful if you want
-to restore the previous signal handler at a later time.
+Cuối cùng `oact` có thể là `NULL`, nhưng nếu không, nó trả về thông tin
+signal handler _cũ_ đã có trước đó. Điều này hữu ích nếu bạn muốn khôi
+phục signal handler trước đó vào một lúc nào đó sau.
 
-We'll focus on these three fields in the `struct sigaction`:
+Chúng ta sẽ tập trung vào ba trường này trong `struct sigaction`:
 
-|Signal|Description|
+|Signal|Mô tả|
 |------------|----------------------------------------------------------|
-|`sa_handler`|The signal handler function|
-|`sa_mask`|A set of signals to block while this one is being handled|
-|`sa_flags`|Flags to modify the behavior of the handler, or `0`|
+|`sa_handler`|Hàm signal handler|
+|`sa_mask`|Tập hợp các signal cần chặn trong khi signal này đang được xử lý|
+|`sa_flags`|Các cờ để thay đổi hành vi của handler, hoặc `0`|
 
-`sa_handler` is a pointer to a function that returns `void` and takes a
-single `int` parameter (which will hold the signal number that it's
-handling. You can also specify `SIG_IGN` to ignore the signal, or
-`SIG_DEF` to set it to the default action.
+`sa_handler` là con trỏ đến một hàm trả về `void` và nhận một tham số
+`int` duy nhất (sẽ giữ số signal mà nó đang xử lý). Bạn cũng có thể chỉ
+định `SIG_IGN` để bỏ qua signal, hoặc `SIG_DEF` để đặt nó về hành động
+mặc định.
 
-What about that `sa_mask` field? When you're handling a signal, you
-might want to block other signals from being delivered, and you can do
-this by adding them to the `sa_mask` It's a "set", which means you can
-do normal set operations to manipulate them: `sigemptyset()`,
-`sigfillset()`, `sigaddset()`, `sigdelset()`, and `sigismember()`.  In
-this example, we'll just clear the set and not block any other signals.
+Còn trường `sa_mask`? Khi bạn đang xử lý một signal, bạn có thể muốn
+chặn các signal khác không được gửi đến, và bạn có thể làm điều này bằng
+cách thêm chúng vào `sa_mask`. Đây là một "tập hợp", nghĩa là bạn có thể
+thực hiện các phép toán tập hợp bình thường để thao tác chúng:
+`sigemptyset()`, `sigfillset()`, `sigaddset()`, `sigdelset()`, và
+`sigismember()`. Trong ví dụ này, chúng ta sẽ chỉ xóa tập hợp và không
+chặn bất kỳ signal nào khác.
 
-Examples always help! Here's one that handled `SIGINT`, which can be
-delivered by hitting `^C`, called [flx[`sigint.c`|sigint.c]]:
+Ví dụ luôn hữu ích! Đây là một ví dụ xử lý `SIGINT`, có thể được gửi
+bằng cách nhấn `^C`, có tên là [flx[`sigint.c`|sigint.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -170,14 +168,13 @@ int main(void)
 }
 ```
 
-This program has two functions: `main()` which sets up the signal
-handler (using the `sigaction()` call), and `sigint_handler()` which is
-the signal handler, itself.
+Chương trình này có hai hàm: `main()` thiết lập signal handler (sử dụng
+lệnh gọi `sigaction()`), và `sigint_handler()` là bản thân signal handler.
 
-What happens when you run it? If you are in the midst of entering a
-string and you hit `^C`, the call to `gets()` fails and sets the global
-variable `errno` to `EINTR`. Additionally, `sigint_handler()` is called
-and does its routine, so you actually see:
+Điều gì xảy ra khi bạn chạy nó? Nếu bạn đang nhập một chuỗi và nhấn
+`^C`, lệnh gọi `gets()` thất bại và đặt biến toàn cục `errno` thành
+`EINTR`. Ngoài ra, `sigint_handler()` được gọi và thực hiện công việc
+của nó, vì vậy bạn thực sự thấy:
 
 ```
 Enter a string:
@@ -185,15 +182,15 @@ the quick brown fox jum^CAhhh! SIGINT!
 fgets: Interrupted system call
 ```
 
-And then it exits. Hey---what kind of handler is this, if it just exits
-anyway?
+Và rồi nó thoát. Này---đây là kiểu handler gì vậy, nếu nó chỉ thoát
+ra bất kể thế nào?
 
-Well, we have a couple things at play, here. First, you'll notice that
-the signal handler was called, because it printed "Ahhh! SIGINT!" But
-then `fgets()` returns an error, namely `EINTR`, or "Interrupted system
-call". See, some system calls can be interrupted by signals, and when
-this happens, they return an error. You might see code like this
-(sometimes cited as an excusable use of `goto`):
+Thực ra, có một vài điều đang diễn ra ở đây. Đầu tiên, bạn sẽ nhận thấy
+rằng signal handler đã được gọi, vì nó in ra "Ahhh! SIGINT!" Nhưng sau
+đó `fgets()` trả về lỗi, cụ thể là `EINTR`, hay "Interrupted system
+call". Thấy đó, một số system call có thể bị ngắt bởi signal, và khi
+điều này xảy ra, chúng trả về lỗi. Bạn có thể thấy code như thế này
+(đôi khi được trích dẫn như là một cách dùng `goto` có thể bỏ qua):
 
 ``` {.c}
 restart:
@@ -204,15 +201,14 @@ restart:
     }
 ```
 
-Instead of using `goto` like that, you might be able to set your
-`sa_flags` to include `SA_RESTART`. For example, if we change our
-`SIGINT` handler code to look like this:
+Thay vì dùng `goto` như vậy, bạn có thể đặt `sa_flags` để bao gồm
+`SA_RESTART`. Ví dụ, nếu chúng ta thay đổi code handler `SIGINT` thành:
 
 ``` {.c}
     sa.sa_flags = SA_RESTART;
 ```
 
-Then our run looks more like this:
+Thì kết quả chạy của chúng ta trông như thế này hơn:
 
 ```
 Enter a string:
@@ -222,88 +218,86 @@ This time fer sure!
 You entered: This time fer sure!
 ```
 
-Some system calls are interruptible, and some can be restarted. It's
-system dependent.
+Một số system call có thể bị ngắt, và một số có thể được khởi động lại.
+Điều này phụ thuộc vào hệ thống.
 
-## What about `signal()`
+## Còn `signal()` thì sao
 
-ANSI C defines a function called `signal()` that can be used to catch
-signals. It's not as reliable or as full-featured as `sigaction()`, so
-use of `signal()`is generally discouraged.
+ANSI C định nghĩa một hàm gọi là `signal()` có thể được dùng để bắt
+signal. Nó không đáng tin cậy hoặc đầy đủ tính năng như `sigaction()`,
+vì vậy việc sử dụng `signal()` thường không được khuyến khích.
 
-## Some signals to make you popular
+## Một số signal để bạn trở nên nổi tiếng
 
-Here is a list of signals you (most likely) have at your disposal:
+Đây là danh sách các signal bạn (rất có thể) có sẵn:
 
-|Signal|Description|
+|Signal|Mô tả|
 |:-:|-|
-|`SIGABRT`|Process abort signal.|
-|`SIGALRM`|Alarm clock.|
-|`SIGFPE`|Erroneous arithmetic operation.|
-|`SIGHUP`|Hangup.|
-|`SIGILL`|Illegal instruction.|
-|`SIGINT`|Terminal interrupt signal.|
-|`SIGKILL`|Kill (cannot be caught or ignored).|
-|`SIGPIPE`|Write on a pipe with no one to read it.|
-|`SIGQUIT`|Terminal quit signal.|
-|`SIGSEGV`|Invalid memory reference.|
-|`SIGTERM`|Termination signal.|
-|`SIGUSR1`|User-defined signal 1.|
-|`SIGUSR2`|User-defined signal 2.|
-|`SIGCHLD`|Child process terminated or stopped.|
-|`SIGCONT`|Continue executing, if stopped.|
-|`SIGSTOP`|Stop executing (cannot be caught or ignored).|
-|`SIGTSTP`|Terminal stop signal.|
-|`SIGTTIN`|Background process attempting read.|
-|`SIGTTOU`|Background process attempting write.|
-|`SIGBUS`|Bus error.|
-|`SIGPOLL`|Pollable event.|
-|`SIGPROF`|Profiling timer expired.|
-|`SIGSYS`|Bad system call.|
-|`SIGTRAP`|Trace/breakpoint trap.|
-|`SIGURG`|High bandwidth data is available at a socket.|
-|`SIGVTALRM`|Virtual timer expired.|
-|`SIGXCPU`|CPU time limit exceeded.|
-|`SIGXFSZ`|File size limit exceeded.|
+|`SIGABRT`|Signal hủy tiến trình.|
+|`SIGALRM`|Đồng hồ báo thức.|
+|`SIGFPE`|Phép toán số học sai.|
+|`SIGHUP`|Ngắt kết nối (Hangup).|
+|`SIGILL`|Lệnh không hợp lệ.|
+|`SIGINT`|Signal ngắt terminal.|
+|`SIGKILL`|Kill (không thể bắt hoặc bỏ qua).|
+|`SIGPIPE`|Ghi vào pipe mà không có ai đọc.|
+|`SIGQUIT`|Signal thoát terminal.|
+|`SIGSEGV`|Tham chiếu bộ nhớ không hợp lệ.|
+|`SIGTERM`|Signal kết thúc tiến trình.|
+|`SIGUSR1`|Signal do người dùng định nghĩa 1.|
+|`SIGUSR2`|Signal do người dùng định nghĩa 2.|
+|`SIGCHLD`|Tiến trình con kết thúc hoặc bị dừng.|
+|`SIGCONT`|Tiếp tục thực thi, nếu đã bị dừng.|
+|`SIGSTOP`|Dừng thực thi (không thể bắt hoặc bỏ qua).|
+|`SIGTSTP`|Signal dừng terminal.|
+|`SIGTTIN`|Tiến trình nền đang cố đọc.|
+|`SIGTTOU`|Tiến trình nền đang cố ghi.|
+|`SIGBUS`|Lỗi bus.|
+|`SIGPOLL`|Sự kiện có thể polling.|
+|`SIGPROF`|Hết thời gian đếm profiling.|
+|`SIGSYS`|System call không hợp lệ.|
+|`SIGTRAP`|Bẫy trace/breakpoint.|
+|`SIGURG`|Dữ liệu băng thông cao có sẵn tại socket.|
+|`SIGVTALRM`|Hết thời gian đồng hồ ảo.|
+|`SIGXCPU`|Vượt quá giới hạn thời gian CPU.|
+|`SIGXFSZ`|Vượt quá giới hạn kích thước file.|
 
-Each signal has its own default signal handler, the behavior of which is
-defined in your local man pages.
+Mỗi signal có default signal handler riêng của nó, hành vi của chúng
+được định nghĩa trong các trang man trên hệ thống của bạn.
 
-## The Dragons of Reentrancy
+## Những Con Rồng của Reentrancy
 
-If you're busy doing something with global or static data (let's call
-that variable `alvin`) and then you get interrupted, what happens if the
-handler *also* modifies `alvin`? And then the handler returns and
-`alvin` has been messed with behind your back! And your function has no
-way to know it! Worse, large data structures might be only _partially_
-written to when the handler is called, leading to tearing and horrible
-state mashing.
+Nếu bạn đang bận làm gì đó với dữ liệu global hoặc static (gọi biến đó
+là `alvin`) và rồi bạn bị ngắt, điều gì xảy ra nếu handler *cũng* sửa
+đổi `alvin`? Và rồi handler trả về và `alvin` đã bị sửa đổi sau lưng
+bạn! Và hàm của bạn không có cách nào biết điều đó! Tệ hơn, các cấu
+trúc dữ liệu lớn có thể chỉ được ghi _một phần_ khi handler được gọi,
+dẫn đến rách dữ liệu và trạng thái hỗn loạn khủng khiếp.
 
-We call these _reentrancy problems_. 
+Chúng ta gọi đây là _vấn đề reentrancy_.
 
-What does that mean? If I might be permitted, I'll just lazily quote
-[flw[the Wikipedia article on reentrancy|Reentrancy_(computing)]]:
+Điều đó có nghĩa là gì? Nếu tôi được phép, tôi sẽ lười biếng trích dẫn
+[flw[bài viết Wikipedia về reentrancy|Reentrancy_(computing)]]:
 
-> Reentrant code is designed to be safe and predictable when multiple
-> instances of the same function are called simultaneously or in quick
-> succession. A computer program or subroutine is called reentrant if
-> multiple invocations can safely run concurrently on multiple
-> processors, or if on a single-processor system its execution can be
-> interrupted and a new execution of it can be safely started (it can be
-> "re-entered"). The interruption could be caused by an internal action
-> such as a jump or call [...], or by an external action such as an
-> interrupt or signal. 
+> Reentrant code được thiết kế để an toàn và có thể dự đoán khi nhiều
+> instance của cùng một hàm được gọi đồng thời hoặc liên tiếp nhanh
+> chóng. Một chương trình máy tính hoặc chương trình con được gọi là
+> reentrant nếu nhiều lần gọi có thể chạy đồng thời an toàn trên nhiều
+> processor, hoặc nếu trên hệ thống đơn processor, việc thực thi của nó
+> có thể bị ngắt và một lần thực thi mới có thể được khởi động an toàn
+> (nó có thể được "re-entered"). Sự ngắt có thể được gây ra bởi hành
+> động nội bộ như nhảy hoặc gọi [...], hoặc bởi hành động bên ngoài
+> như một ngắt hoặc signal.
 
-[flx[Here's a contrived example|sigcount.c]], partial listing below. The
-`increment()` function is not reentrant with respect to asynchronous
-signals.
+[flx[Đây là một ví dụ minh họa|sigcount.c]], liệt kê một phần bên dưới.
+Hàm `increment()` không phải reentrant đối với các signal bất đồng bộ.
 
-Imagine the `increment()` function slowly increasing the global `count`. But
-wait! If the signal handler fires at this time, it'll set the `count` to
-something that `increment()` isn't expecting! And then things blow up.
+Hãy tưởng tượng hàm `increment()` từ từ tăng `count` toàn cục. Nhưng
+chờ đã! Nếu signal handler kích hoạt lúc này, nó sẽ đặt `count` thành
+một giá trị mà `increment()` không mong đợi! Và rồi mọi thứ sẽ nổ tung.
 
-(We'll get to `volatile sig_atomic_t` later; for now just assume it's
-`int`.)
+(Chúng ta sẽ đến `volatile sig_atomic_t` sau; bây giờ chỉ cần giả sử
+đó là `int`.)
 
 ``` {.c}
 volatile sig_atomic_t count;
@@ -333,12 +327,12 @@ void increment(void)
 }
 ```
 
-Your takeaway: any time you're reliant on some kind of shared state, you
-might have trouble with signals if the signal handler also messes with
-that shared state.
+Bài học của bạn: bất cứ khi nào bạn dựa vào một loại trạng thái chia sẻ
+nào đó, bạn có thể gặp rắc rối với signal nếu signal handler cũng sửa
+đổi trạng thái chia sẻ đó.
 
-[flx[Here's another example using `strtok()`|sigstrtok.c]], which is a
-notoriously non-reentrant function.
+[flx[Đây là một ví dụ khác sử dụng `strtok()`|sigstrtok.c]], là một hàm
+nổi tiếng về tính không-reentrant.
 
 ``` {.c}
 void handler(int sig)
@@ -370,14 +364,14 @@ void tokenizer(void)
 }
 ```
 
-Let's say that two seconds into the `tokenizer()` function, the signal
-handler is called. The `handler()` does its own tokenizing of its own
-string and prints the tokens[^2baf].
+Giả sử rằng hai giây sau khi vào hàm `tokenizer()`, signal handler được
+gọi. `handler()` thực hiện tokenize riêng trên chuỗi của nó và in các
+token[^2baf].
 
-[^2baf]: And it uses `write()` because `printf()` is not reentrant!
+[^2baf]: Và nó dùng `write()` vì `printf()` không phải reentrant!
 
-If everything went well and sensibly, we'd see this output (but we
-don't):
+Nếu mọi thứ diễn ra tốt và hợp lý, chúng ta sẽ thấy đầu ra này (nhưng
+thực tế không phải vậy):
 
 ``` {.default}
 In main: The
@@ -394,10 +388,10 @@ In main: dogs
 Done tokenizing
 ```
 
-See how the signal occurred, was handled, and `tokenizer()` just
-continued where it left off? That would be great, right?
+Thấy signal xảy ra, được xử lý, và `tokenizer()` tiếp tục từ chỗ đã
+dừng không? Tuyệt vời đúng không?
 
-Instead we see this (probably):
+Thay vào đó chúng ta thấy điều này (có lẽ):
 
 ``` {.default}
 In main: The
@@ -407,23 +401,25 @@ In handler: world!
 Done tokenizing
 ```
 
-Where's the rest of it?
+Phần còn lại đâu rồi?
 
-Well, `strtok()` maintains some internal state in a `static` variable.
-Our `tokenize()` function was expecting the state to be a certain way,
-and the signal handler overwrote it, causing `tokenize()` to misbehave.
+`strtok()` duy trì một số trạng thái nội bộ trong một biến `static`.
+Hàm `tokenize()` của chúng ta đang mong đợi trạng thái ở một trạng thái
+nhất định, và signal handler đã ghi đè lên nó, khiến `tokenize()` hoạt
+động sai.
 
-And this makes `strtok()` non-reentrant (and, by association,
-`tokenize()` is therefore also non-reentrant).
+Và điều này làm cho `strtok()` không-reentrant (và do liên kết,
+`tokenize()` cũng không-reentrant).
 
-The fix is easy, though. We just need a reentrant version of `strtok()`
-that doesn't have internal shared state. And we have one in
-`strtok_r()`. With that, *we* own the state and we pass it in for
-`strtok_r()` to use. Every part of the code that wants a `strtok_r()`
-loop will have its own state and no one will step on each others toes.
+Nhưng cách sửa thì dễ. Chúng ta chỉ cần một phiên bản reentrant của
+`strtok()` không có trạng thái chia sẻ nội bộ. Và chúng ta có một cái
+trong `strtok_r()`. Với hàm đó, *chúng ta* sở hữu trạng thái và chúng
+ta truyền nó vào cho `strtok_r()` sử dụng. Mọi phần của code muốn có
+vòng lặp `strtok_r()` sẽ có trạng thái riêng và không ai giẫm lên chân
+của người khác.
 
-Here's the code for `strtok_r()` for the `tokenizer()` function (it's
-similar for the `handler()` function):
+Đây là code cho `strtok_r()` trong hàm `tokenizer()` (tương tự cho hàm
+`handler()`):
 
 ``` {.c}
     char *lasts;
@@ -435,37 +431,36 @@ similar for the `handler()` function):
     } while ((token = strtok_r(NULL, " ", &lasts)) != NULL);
 ```
 
-See how we're tracking our own state in `lasts`? If you replace all the
-`strtok()`s with `strtok_r()`s in the demo program, it will work
-properly since all the functionality used by both `handler()` and
-`tokenizer()` is reentrant.
+Thấy cách chúng ta theo dõi trạng thái của mình trong `lasts` không?
+Nếu bạn thay thế tất cả `strtok()` bằng `strtok_r()` trong chương trình
+demo, nó sẽ hoạt động đúng vì tất cả chức năng được sử dụng bởi cả
+`handler()` và `tokenizer()` đều là reentrant.
 
-## Shared Global Data
+## Dữ liệu Global Chia sẻ
 
-You cannot safely alter any shared (e.g. global) data, with one notable
-exception: variables that are declared to be of storage class and type
-`volatile sig_atomic_t`. This is an integer type that holds some range
-of values; the C spec guarantees that you'll be at least able to hold 0
-to 127, inclusive. But the actual range depends on the system and
-whether or not the type is signed. (You can look at `SIG_ATOMIC_MIN` and
-`SIG_ATOMIC_MAX` to see what your limits are.)
+Bạn không thể an toàn thay đổi bất kỳ dữ liệu chia sẻ nào (ví dụ
+global), với một ngoại lệ đáng chú ý: các biến được khai báo là storage
+class và kiểu `volatile sig_atomic_t`. Đây là một kiểu integer giữ một
+số phạm vi giá trị; spec C đảm bảo rằng bạn sẽ ít nhất có thể giữ 0 đến
+127, bao gồm cả hai đầu. Nhưng phạm vi thực tế phụ thuộc vào hệ thống
+và liệu kiểu có dấu hay không. (Bạn có thể xem `SIG_ATOMIC_MIN` và
+`SIG_ATOMIC_MAX` để biết giới hạn của mình.)
 
-The spec is very conservative. It basically says you're being very bad
-if you do anything with global data other than assign to a variable to
-type `volatile sig_atomic_t`. But that's not _super_ true. It's
-_probably_ safe to read from the variable, as well, but be advised that
-as soon as you read and write to the same variable you're definitely
-opening yourself up to some race conditions depending on who else reads
-and modifies those values.
+Spec rất thận trọng. Về cơ bản nó nói bạn đang hành động rất tệ nếu bạn
+làm bất cứ điều gì với dữ liệu global ngoài việc gán vào một biến kiểu
+`volatile sig_atomic_t`. Nhưng điều đó không _hoàn toàn_ đúng. _Có lẽ_
+an toàn khi đọc từ biến cũng vậy, nhưng hãy lưu ý rằng ngay khi bạn đọc
+và ghi vào cùng một biến, bạn chắc chắn đang mở bản thân cho một số
+điều kiện race tùy thuộc vào ai khác đọc và sửa đổi các giá trị đó.
 
-Another exception is global shared data that never changes. If you set
-up some global variables before the signal handler is installed, and you
-never change those values, then the signal handler can read them with
-impunity. They can be any type.
+Một ngoại lệ khác là dữ liệu global chia sẻ không bao giờ thay đổi. Nếu
+bạn thiết lập một số biến global trước khi signal handler được cài đặt,
+và bạn không bao giờ thay đổi các giá trị đó, thì signal handler có thể
+đọc chúng một cách tự do. Chúng có thể thuộc bất kỳ kiểu nào.
 
-Here's an example that handles `SIGUSR1` by setting a global flag, which
-is then examined in the main loop to see if the handler was called.
-This is [flx[`sigusr.c`|sigusr.c]]:
+Đây là một ví dụ xử lý `SIGUSR1` bằng cách đặt một cờ global, sau đó
+được kiểm tra trong vòng lặp chính để xem liệu handler đã được gọi chưa.
+Đây là [flx[`sigusr.c`|sigusr.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -507,9 +502,9 @@ int main(void)
 }
 ```
 
-Fire it it up in one window, and then use the `kill -USR1` in another
-window to kill it. The `sigusr` program conveniently prints out its
-process ID so you can pass it to `kill`:
+Khởi động nó trong một cửa sổ, rồi dùng `kill -USR1` trong cửa sổ khác
+để kết thúc nó. Chương trình `sigusr` tiện lợi in ra process ID của nó
+để bạn có thể truyền nó vào `kill`:
 
 ```
 $ sigusr
@@ -518,13 +513,13 @@ PID 5023: working hard...
 PID 5023: working hard...
 ```
 
-Then in the other window, send it the signal `SIGUSR1`:
+Sau đó trong cửa sổ kia, gửi cho nó signal `SIGUSR1`:
 
 ```
 $ kill -USR1 5023
 ```
 
-And the program should respond:
+Và chương trình sẽ phản hồi:
 
 ```
 PID 5023: working hard...
@@ -532,43 +527,44 @@ PID 5023: working hard...
 Done in by SIGUSR1!
 ```
 
-(And the response should be immediate even if `sleep()` has just been
-called---`sleep()` gets interrupted by signals.)
+(Và phản hồi sẽ ngay lập tức ngay cả khi `sleep()` vừa được gọi---`sleep()`
+bị ngắt bởi signal.)
 
-It's a little counter-intuitive to structure the code this way.
-Shouldn't the handler have all the handling logic and some some other
-piece of code? What if the signal is raised when other code is running
-that isn't able to handle it?
+Việc cấu trúc code theo cách này hơi phản trực giác. Chẳng phải handler
+nên có tất cả logic xử lý và một đoạn code khác hay sao? Điều gì xảy ra
+nếu signal được phát khi code khác đang chạy mà không thể xử lý nó?
 
-That is a bit a of drawback, but structuring the code this way has one
-big gain: *bye bye, reentrancy issues!* And that's no bad thing.
+Đó là một nhược điểm nhỏ, nhưng cấu trúc code theo cách này có một lợi
+ích lớn: *tạm biệt, vấn đề reentrancy!* Và điều đó không hề tệ.
 
-### Asynchronous Signal Safety
+### Độ an toàn signal bất đồng bộ
 
-In light of all the reentrancy pitfalls you might hit, you have to be
-careful when you make function calls in your signal handler, and,
-indeed, when your handler modifies any global state that other functions
-might be using.
+Trước những cạm bẫy reentrancy bạn có thể gặp, bạn phải cẩn thận khi
+thực hiện các lệnh gọi hàm trong signal handler của mình, và thực sự,
+khi handler của bạn sửa đổi bất kỳ trạng thái global nào mà các hàm
+khác có thể đang sử dụng.
 
-Those functions must be _async-signal-safe_, which generally means that
-the function doesn't do anything that might cause reentrancy issues.
+Các hàm đó phải _an toàn với signal bất đồng bộ (async-signal-safe)_,
+điều này thường có nghĩa là hàm không làm bất cứ điều gì có thể gây ra
+vấn đề reentrancy.
 
-In general, you're probably not async-signal-safe if you do any of this:
+Nói chung, bạn có thể không an toàn với signal bất đồng bộ nếu bạn làm
+bất kỳ điều nào trong số này:
 
-* Modify an non-atomic global variable in your function.
-* Read a non-constant global variable that's not atomic.
-* Use `static` data in your function or in your handler.
-* Call any other function that's not async-signal-safe.
+* Sửa đổi một biến global không-atomic trong hàm của bạn.
+* Đọc một biến global không-constant mà không phải atomic.
+* Dùng dữ liệu `static` trong hàm hoặc trong handler của bạn.
+* Gọi bất kỳ hàm nào khác không phải async-signal-safe.
 
-It's pretty limited.
+Khá hạn chế.
 
-You might be curious, for instance, why my earlier example signal
-handler called `write()` to output the message instead of `printf()`.
-Well, the answer is that POSIX says that `write()` is async-signal-safe
-(so is safe to call from within the handler), while `printf()` is not.
+Bạn có thể tò mò, ví dụ, tại sao signal handler trong ví dụ trước của
+tôi gọi `write()` để xuất thông báo thay vì `printf()`. Câu trả lời là
+POSIX nói rằng `write()` là async-signal-safe (vì vậy an toàn khi gọi
+từ bên trong handler), trong khi `printf()` thì không.
 
-The library functions and system calls that are async-signal-safe and
-can be called from within your signal handlers are (breath):
+Các hàm thư viện và system call là async-signal-safe và có thể được gọi
+từ bên trong signal handler của bạn là (hít thở):
 
 `_Exit()`, `_exit()`, `abort()`, `accept()`, `access()`, `aio_error()`,
 `aio_return()`, `aio_suspend()`, `alarm()`, `bind()`, `cfgetispeed()`,
@@ -594,25 +590,25 @@ can be called from within your signal handlers are (breath):
 `timer_settime()`, `times()`, `umask()`, `uname()`, `unlink()`,
 `utime()`, `wait()`, `waitpid()`, and `write()`.
 
-Of course, you can call your own functions from within your signal
-handler (as long as they are async-signal-safe and don't call any
-non-async-signal-safe functions).
+Tất nhiên, bạn có thể gọi các hàm của riêng mình từ bên trong signal
+handler (miễn là chúng là async-signal-safe và không gọi bất kỳ hàm
+không-async-signal-safe nào).
 
-In the next chapter, we'll look at some patterns for safely reacting
-when a signal is raised.
+Trong chương tiếp theo, chúng ta sẽ xem xét một số pattern để phản ứng
+an toàn khi một signal được phát.
 
-## What I have Glossed Over
+## Những Gì Tôi Đã Lướt Qua
 
-Nearly all of it. There are tons of flags, realtime signals, mixing
-signals with threads, masking signals, `longjmp()` and signals, and
-more. I do have another chapter following this one with more in-depth
-material, but I could make a whole guide just out of this one topic!
+Hầu như tất cả mọi thứ. Có hàng tấn cờ, realtime signal, kết hợp signal
+với thread, che giấu signal, `longjmp()` và signal, và nhiều hơn nữa. Tôi
+có một chương tiếp theo với tài liệu chuyên sâu hơn, nhưng tôi có thể
+tạo cả một hướng dẫn riêng chỉ từ chủ đề này!
 
-Of course, this is just a "getting started" guide, but in a last-ditch
-effort to give you more information, here is a list of man pages with
-more information:
+Tất nhiên, đây chỉ là hướng dẫn "bắt đầu", nhưng trong nỗ lực cuối cùng
+để cung cấp cho bạn thêm thông tin, đây là danh sách các trang man với
+nhiều thông tin hơn:
 
-Handling signals:
+Xử lý signal:
 
 * [flm[`sigaction()`|sigaction.2]]
 * [flm[`sigwait()`|sigwait.3]]
@@ -621,13 +617,13 @@ Handling signals:
 * [flm[`sigsuspend()`|sigsuspend.2]]
 * [flm[`sigpending()`|sigpending.2]]
 
-Delivering signals:
+Gửi signal:
 
 * [flm[`kill()`|kill.2]]
 * [flm[`raise()`|raise.3]]
 * [flm[`sigqueue()`|sigqueue.3]]
 
-Set operations:
+Các phép toán tập hợp:
 
 * [flm[`sigemptyset()`|sigemptyset.3]]
 * [flm[`sigfillset()`|sigfillset.3]]
@@ -635,7 +631,7 @@ Set operations:
 * [flm[`sigdelset()`|sigdelset.3]]
 * [flm[`sigismember()`|sigismember.3]]
 
-Other:
+Khác:
 
 * [flm[`sigprocmask()`|sigprocmask.2]]
 * [flm[`sigaltstack()`|sigaltstack.2]]
@@ -643,4 +639,3 @@ Other:
 * [flm[`sigsetjmp()`|sigsetjmp.3]]
 * [flm[`siglongjmp()`|siglongjmp.3]]
 * [flm[`signal()`|signal.2]]
-
