@@ -7,53 +7,52 @@
 <!-- Fork -->
 <!-- ======================================================= -->
 
-# A `fork()` Primer {#fork}
+# Nhập môn `fork()` {#fork}
 
-"Fork", aside from being one of those words that begins to appear very
-strange after you've typed it repeatedly, refers to the way Unix creates
-new processes. This document gives a quick and dirty `fork()` primer,
-since use of that system call will pop up in other IPC documents. If you
-already know all about `fork()`, you might as well skip this document.
+"Fork" (dĩa), ngoài việc là một trong những từ trông ngày càng kỳ lạ hơn
+sau khi bạn gõ đi gõ lại nhiều lần, còn đề cập đến cách Unix tạo ra các
+tiến trình mới. Tài liệu này cung cấp một bài nhập môn nhanh và thực tế
+về `fork()`, vì system call này sẽ xuất hiện trong các tài liệu IPC khác.
+Nếu bạn đã biết hết về `fork()` rồi thì có thể bỏ qua tài liệu này.
 
 <!-- ======================================================= -->
 <!-- "Seek ye the Gorge of Eternal Peril" -->
 <!-- ======================================================= -->
 
-## "Seek ye the Gorge of Eternal Peril"
+## "Hãy tìm đến Hẻm Núi Nguy Hiểm Muôn Đời"
 
-`fork()` can be thought of as a ticket to power. Power can sometimes be
-thought of as a ticket to destruction. Therefore, you should be careful
-while messing with `fork()` on your system, especially while people are
-cranking their nearly-late semester projects and are ready to nuke the
-first organism that brings the system to a halt. It's not that you
-should never play with `fork()`, you just have to be cautious.  It's
-kind of like sword---swallowing; if you're careful, you won't disembowel
-yourself.
+`fork()` có thể được coi như là tờ vé đến với quyền năng. Quyền năng đôi
+khi lại là tờ vé dẫn đến hủy diệt. Do đó, bạn phải cẩn thận khi mày mò
+với `fork()` trên hệ thống của mình, đặc biệt khi mọi người đang gấp rút
+làm đồ án cuối kỳ gần đến hạn và sẵn sàng "xử lý" bất kỳ thứ gì làm hệ
+thống chết đứng. Không phải là bạn không bao giờ được chơi với `fork()`,
+chỉ là bạn cần thận trọng. Nó giống như nuốt gươm vậy---nếu cẩn thận,
+bạn sẽ không tự mổ bụng mình.
 
-Since you're still here, I suppose I'd better deliver the goods. Like I
-said, `fork()` is how Unix starts new processes. Basically, how it works
-is this: the parent process (the one that already exists) `fork()`'s a
-child process (the new one). The child process gets a _copy_ of the
-parent's data. _Voila!_ You have two processes where there was only one!
+Vì bạn vẫn còn đây, tôi nghĩ tốt hơn là tôi nên nói thẳng vào vấn đề.
+Như tôi đã nói, `fork()` là cách Unix khởi động các tiến trình mới. Về
+cơ bản, cách hoạt động là thế này: tiến trình cha (tiến trình đã tồn
+tại) `fork()` ra một tiến trình con (tiến trình mới). Tiến trình con nhận
+được một _bản sao_ dữ liệu của cha. _Voila!_ Bạn có hai tiến trình từ
+chỗ chỉ có một!
 
-Of course, there are all kinds of gotchas you must deal with when
-`fork()`ing processes or else your sysadmin will get irate with you when
-you fill of the system process table and they have to punch the reset
-button on the machine.
+Tất nhiên, có đủ loại bẫy mà bạn phải đối phó khi `fork()` các tiến
+trình, nếu không sysadmin của bạn sẽ nổi giận với bạn khi bạn làm đầy
+bảng tiến trình của hệ thống và họ phải ấn nút reset máy.
 
-First of all, you should know something of process behavior under Unix.
-When a process dies, it doesn't really go away completely. It's dead, so
-it's no longer running, but a small remnant is waiting around for the
-parent process to pick up. This remnant contains the return value from
-the child process and some other goop. So after a parent process
-`fork()`s a child process, it must `wait()` (or `waitpid()`) for that
-child process to exit. It is this act of `wait()`ing that allows all
-remnants of the child to vanish.
+Trước tiên, bạn cần biết điều gì đó về hành vi của tiến trình trong Unix.
+Khi một tiến trình chết, nó không thực sự biến mất hoàn toàn. Nó đã chết
+nên không còn chạy nữa, nhưng một mảnh nhỏ còn chờ đợi để tiến trình cha
+thu dọn. Mảnh nhỏ này chứa giá trị trả về từ tiến trình con và một số
+thứ linh tinh khác. Vì vậy sau khi tiến trình cha `fork()` ra một tiến
+trình con, nó phải `wait()` (hoặc `waitpid()`) để chờ tiến trình con đó
+thoát. Chính hành động `wait()` này mới cho phép tất cả những gì còn sót
+lại của tiến trình con biến mất.
 
-Naturally, there is an exception to the above rule: the parent can
-ignore the `SIGCHLD` signal (`SIGCLD` on some older systems) and then it
-won't have to `wait()`. This can be done (on systems that support it)
-like this:
+Tất nhiên, có một ngoại lệ cho quy tắc trên: tiến trình cha có thể bỏ
+qua tín hiệu `SIGCHLD` (là `SIGCLD` trên một số hệ thống cũ hơn) và khi
+đó nó sẽ không cần phải `wait()`. Điều này có thể được thực hiện (trên
+các hệ thống hỗ trợ nó) như sau:
 
 ``` {.c}
 main()
@@ -64,46 +63,47 @@ main()
     fork();fork();fork();  /* Rabbits, rabbits, rabbits! */
 ```
 
-Now, when a child process dies and has not been `wait()`ed on, it will
-usually show up in a `ps` listing as "`<defunct>`". It will remain this
-way until the parent `wait()`s on it, or it is dealt with as mentioned
-below.
+Bây giờ, khi một tiến trình con chết mà không được `wait()`, nó thường
+sẽ hiển thị trong danh sách `ps` dưới dạng "`<defunct>`". Nó sẽ ở trạng
+thái này cho đến khi tiến trình cha `wait()` nó, hoặc được xử lý như đã
+đề cập bên dưới.
 
-Now there is another rule you must learn: when the parent dies before it
-`wait()`s for the child (assuming it is not ignoring `SIGCHLD`), the
-child is reparented to the `init` process (PID 1). This is not a problem
-if the child is still living well and under control. However, if the
-child is already defunct, we're in a bit of a bind. See, the original
-parent can no longer `wait()`, since it's dead. So how does `init` know
-to `wait()` for these _zombie processes_?
+Bây giờ có một quy tắc khác bạn phải học: khi tiến trình cha chết trước
+khi nó `wait()` tiến trình con (giả sử nó không bỏ qua `SIGCHLD`), tiến
+trình con sẽ được nhận làm con của tiến trình `init` (PID 1). Đây không
+phải là vấn đề nếu tiến trình con vẫn đang sống tốt và trong tầm kiểm
+soát. Tuy nhiên, nếu tiến trình con đã ở trạng thái defunct rồi, chúng
+ta sẽ gặp rắc rối. Vì tiến trình cha ban đầu không thể `wait()` nữa vì
+nó đã chết. Vậy làm sao `init` biết để `wait()` các _tiến trình zombie_
+này?
 
-The answer: it's magic! Well, on some systems, `init` periodically
-destroys all the defunct processes it owns. On other systems, it
-outright refuses to become the parent of any defunct processes, instead
-destroying them immediately. If you're using one of the former systems,
-you could easily write a loop that fills up the process table with
-defunct processes owned by `init`. Wouldn't that make your sysadmin
-happy?
+Câu trả lời: đó là phép thuật! Thực ra trên một số hệ thống, `init` định
+kỳ hủy tất cả các tiến trình defunct mà nó sở hữu. Trên các hệ thống
+khác, nó thẳng thừng từ chối trở thành cha của bất kỳ tiến trình defunct
+nào, thay vào đó hủy chúng ngay lập tức. Nếu bạn đang dùng một trong các
+hệ thống kiểu trước, bạn có thể dễ dàng viết một vòng lặp làm đầy bảng
+tiến trình bằng các tiến trình defunct thuộc sở hữu của `init`. Sysadmin
+của bạn sẽ vui lòng lắm đấy?
 
-Your mission: make sure your parent process either ignores `SIGCHLD`, or
-`wait()`s for all the children it `fork()`s. Well, you don't _always_
-have to do that (like if you're starting a daemon or something), but you
-code with caution if you're a `fork()` novice. Otherwise, feel free to
-blast off into the stratosphere.
+Nhiệm vụ của bạn: đảm bảo tiến trình cha của bạn hoặc bỏ qua `SIGCHLD`,
+hoặc `wait()` tất cả các con mà nó đã `fork()`. Thực ra bạn không _luôn
+luôn_ phải làm vậy (ví dụ nếu bạn đang khởi động một daemon hay gì đó),
+nhưng hãy lập trình cẩn thận nếu bạn là người mới với `fork()`. Nếu
+không, cứ thoải mái phóng thẳng lên tầng bình lưu.
 
-To summarize: children become defunct until the parent `wait()`s, unless
-the parent is ignoring `SIGCHLD`. Furthermore, children (living or
-defunct) whose parents die without `wait()`ing for them (again assuming
-the parent is not ignoring `SIGCHLD`) become children of the `init`
-process, which deals with them heavy-handedly.
+Tóm lại: các con trở thành defunct cho đến khi cha `wait()`, trừ khi cha
+đang bỏ qua `SIGCHLD`. Hơn nữa, các con (còn sống hoặc defunct) mà cha
+chết mà không `wait()` chúng (một lần nữa giả sử cha không bỏ qua
+`SIGCHLD`) sẽ trở thành con của tiến trình `init`, nơi xử lý chúng khá
+thẳng tay.
 
 <!-- ======================================================= -->
 <!-- "I'm mentally prepared! Give me The Button!" -->
 <!-- ======================================================= -->
 
-## "I'm mentally prepared! Give me _The Button_!"
+## "Tôi đã sẵn sàng tinh thần! Cho tôi _Cái Nút_ đó!"
 
-Right! Here's an [flx[example|fork1.c]] of how to use `fork()`:
+Được thôi! Đây là một [flx[ví dụ|fork1.c]] về cách sử dụng `fork()`:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -146,45 +146,40 @@ int main(void)
 }
 ```
 
-There is a ton of stuff to note from this example, so we'll just start
-from the top, shall we?
+Có rất nhiều điều cần lưu ý từ ví dụ này, vậy ta cứ bắt đầu từ đầu nhé.
 
-`pid_t` is the generic process type. Under Unix, this is a `short`.  So,
-I call `fork()` and save the return value in the `pid` variable.
-`fork()` is easy, since it can only return three things:
+`pid_t` là kiểu tiến trình tổng quát. Trong Unix, đây là một `short`. Vì
+vậy tôi gọi `fork()` và lưu giá trị trả về vào biến `pid`. `fork()` rất
+dễ, vì nó chỉ có thể trả về ba giá trị:
 
-|Return Value|Description|
+|Giá trị trả về|Mô tả|
 |:----------:|------------------------------------------------------------|
-|`0`|If it returns `0`, you are the child process. You can get the parent's PID by calling `getppid()`. Of course, you can get your own PID by calling `getpid()`.|
-|`-1`|If it returns `-1`, something went wrong, and no child was created. Use `perror()` to see what happened. You've probably filled the process table---if you turn around you'll see your sysadmin coming at you with a fireaxe.|
-|Anthing else|Any other value returned by `fork()` means that you're the parent and the value returned is the PID of your child. This is the only way to get the PID of your child, since there is no `getcpid()` call (obviously due to the one-to-many relationship between parents and children.)|
+|`0`|Nếu nó trả về `0`, bạn là tiến trình con. Bạn có thể lấy PID của cha bằng cách gọi `getppid()`. Tất nhiên, bạn có thể lấy PID của chính mình bằng cách gọi `getpid()`.|
+|`-1`|Nếu nó trả về `-1`, có điều gì đó đã xảy ra sai, và không có tiến trình con nào được tạo. Dùng `perror()` để xem điều gì đã xảy ra. Có lẽ bạn đã làm đầy bảng tiến trình---nếu bạn quay lại bạn sẽ thấy sysadmin đang đến với chiếc rìu cứu hỏa.|
+|Bất kỳ giá trị nào khác|Bất kỳ giá trị nào khác được trả về bởi `fork()` có nghĩa là bạn là tiến trình cha và giá trị trả về là PID của con bạn. Đây là cách duy nhất để lấy PID của con bạn, vì không có lệnh `getcpid()` (hiển nhiên do mối quan hệ một-nhiều giữa cha và con.)|
 
-When the child finally calls `exit()`, the return value passed will
-arrive at the parent when it `wait()`s. As you can see from the `wait()`
-call, there's some weirdness coming into play when we print the return
-value. What's this `WEXITSTATUS()` stuff, anyway? Well, that is a macro
-that extracts the child's actual return value from the value `wait()`
-returns. Yes, there is more information buried in that `int`.  I'll let
-you look it up on your own.
+Khi tiến trình con cuối cùng gọi `exit()`, giá trị trả về được truyền sẽ
+đến tiến trình cha khi nó `wait()`. Như bạn có thể thấy từ lệnh `wait()`,
+có sự kỳ lạ khi chúng ta in giá trị trả về. Cái `WEXITSTATUS()` này là
+gì vậy? Đó là một macro trích xuất giá trị trả về thực sự của tiến trình
+con từ giá trị mà `wait()` trả về. Đúng, còn nhiều thông tin ẩn trong
+`int` đó. Tôi để bạn tự tra cứu.
 
-"How," you ask, "does `wait()` know which process to wait for? I mean,
-since the parent can have multiple children, which one does `wait()`
-actually wait for?"  The answer is simple, my friends: it waits for
-whichever one happens to exit first. If you must, you can specify
-exactly which child to wait for by calling `waitpid()` with your child's
-PID as an argument.
+"Làm thế nào," bạn hỏi, "`wait()` biết phải đợi tiến trình nào? Ý tôi
+là, vì tiến trình cha có thể có nhiều con, `wait()` thực sự đợi cái nào?"
+Câu trả lời đơn giản, bạn ơi: nó đợi cái nào thoát ra đầu tiên. Nếu cần,
+bạn có thể chỉ định chính xác con nào cần đợi bằng cách gọi `waitpid()`
+với PID của con bạn làm đối số.
 
-Another interesting thing to note from the above example is that both
-parent and child use the `rv` variable. Does this mean that it is shared
-between the processes? _NO!_  If it was, I wouldn't have written all
-this IPC stuff. _Each process has its own copy of all variables._ There
-is a lot of other stuff that is copied, too, but you'll have to read the
-`man` page to see what.
+Một điều thú vị khác cần lưu ý từ ví dụ trên là cả cha và con đều dùng
+biến `rv`. Điều này có nghĩa là nó được chia sẻ giữa các tiến trình
+không? _KHÔNG!_ Nếu vậy thì tôi đã không viết hết mọi thứ về IPC này.
+_Mỗi tiến trình có bản sao riêng của tất cả các biến._ Còn nhiều thứ
+khác cũng được sao chép, nhưng bạn sẽ phải đọc trang `man` để biết thêm.
 
-A final note about the above program: I used a switch statement to
-handle the `fork()`, and that's not exactly typical. Most often you'll
-see an <statement>if</statement> statement there; sometimes it's as
-short as:
+Một lưu ý cuối về chương trình trên: tôi đã dùng câu lệnh switch để xử
+lý `fork()`, và điều đó không phải là điển hình. Thông thường bạn sẽ
+thấy câu lệnh <statement>if</statement> ở đó; đôi khi ngắn như:
 
 ``` {.c}
 if (!fork()) {
@@ -196,16 +191,17 @@ if (!fork()) {
     }
 ```
 
-Oh yeah---the above example also demonstrates how to `wait()` if you
-don't care what the return value of the child is: you just call it with
-`NULL` as the argument.
+À phải---ví dụ trên cũng minh họa cách `wait()` nếu bạn không quan tâm
+đến giá trị trả về của tiến trình con: chỉ cần gọi nó với `NULL` làm đối
+số.
 
 <!-- ======================================================= -->
 <!-- Fork summary -->
 <!-- ======================================================= -->
 
-## Summary
+## Tóm tắt
 
-Now you know all about the mighty `fork()` function! It's more useful
-than a wet bag of worms in most computationally intensive situations,
-and you can amaze your friends at parties. I swear. Try it.
+Bây giờ bạn đã biết tất cả về hàm `fork()` oai phong! Nó hữu ích hơn
+một túi giun ướt trong hầu hết các tình huống tính toán cường độ cao,
+và bạn có thể gây ấn tượng với bạn bè ở các buổi tiệc. Tôi thề đấy. Thử
+đi.
