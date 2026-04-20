@@ -7,30 +7,30 @@
 <!-- Memory Mapped Files -->
 <!-- ======================================================= -->
 
-# Memory Mapped Files {#mmap}
+# File Được Ánh Xạ Bộ Nhớ {#mmap}
 
-There comes a time when you want to read and write to and from files so
-that the information is shared between processes. Think of it this way:
-two processes both open the same file and both read and write from it,
-thus sharing the information. The problem is, sometimes it's a pain to
-do all those `fseek()`s and stuff to get around. Wouldn't it be easier
-if you could just map a section of the file to memory, and get a pointer
-to it? Then you could simply use pointer arithmetic to get (and set)
-data in the file.
+Có một lúc nào đó bạn muốn đọc và ghi từ và vào các file để thông tin
+được chia sẻ giữa các tiến trình. Hãy nghĩ theo cách này: hai tiến trình
+cùng mở một file và cùng đọc và ghi từ nó, do đó chia sẻ thông tin. Vấn
+đề là, đôi khi thật phiền phức khi phải thực hiện tất cả những `fseek()`
+và những thứ tương tự để di chuyển xung quanh. Sẽ dễ dàng hơn nếu bạn
+có thể chỉ ánh xạ một phần của file vào bộ nhớ, và lấy một con trỏ đến
+nó? Rồi bạn có thể đơn giản sử dụng phép tính số học con trỏ để lấy (và
+đặt) dữ liệu trong file.
 
-Well, this is exactly what a memory mapped file is. The cool part is
-that as you make changes to memory (by changing things that pointers
-point to), _it actually changes the file, itself_. Memory suddenly
-becomes a window onto the file and you can change it directly though
-that window.
+Vâng, đây chính xác là một file được ánh xạ bộ nhớ. Phần thú vị là khi
+bạn thực hiện thay đổi vào bộ nhớ (bằng cách thay đổi những thứ mà con
+trỏ trỏ đến), _nó thực sự thay đổi chính file đó_. Bộ nhớ đột nhiên trở
+thành một cửa sổ nhìn vào file và bạn có thể thay đổi nó trực tiếp qua
+cửa sổ đó.
 
-And it's really easy to use, too. A few simple calls, mixed with a few
-simple rules, and you're mapping like a mad-person.
+Và nó thực sự rất dễ sử dụng nữa. Một vài lệnh gọi đơn giản, kết hợp
+với một vài quy tắc đơn giản, và bạn đang ánh xạ như người điên.
 
-## Getting Started
+## Bắt Đầu
 
-Before mapping a file to memory, you need to get a file descriptor for
-it by using the `open()` system call:
+Trước khi ánh xạ file vào bộ nhớ, bạn cần lấy một file descriptor cho
+nó bằng cách sử dụng syscall `open()`:
 
 ``` {.c}
 int fd;
@@ -38,40 +38,39 @@ int fd;
 fd = open("mapdemofile", O_RDWR);
 ```
 
-In this example, we've opened the file for read/write access. You can
-open it in whatever mode you want, but it has to match the mode
-specified in the `prot` parameter to the `mmap()` call, below.
+Trong ví dụ này, ta đã mở file để truy cập đọc/ghi. Bạn có thể mở nó
+ở bất kỳ chế độ nào bạn muốn, nhưng nó phải khớp với chế độ được chỉ
+định trong tham số `prot` của lệnh gọi `mmap()` bên dưới.
 
-To memory map a file, you use the `mmap()` system call, which is defined
-as follows:
+Để ánh xạ bộ nhớ cho file, bạn dùng syscall `mmap()`, được định nghĩa
+như sau:
 
 ``` {.c}
 void *mmap(void *addr, size_t len, int prot,
            int flags, int fildes, off_t off);
 ```
 
-What a slew of parameters! Here they are, one at a time:
+Thật nhiều tham số! Đây là từng cái một:
 
-|Parameter|Description|
+|Tham số|Mô tả|
 |--------|----------------------------------------------------------|
-|`addr`|This is the address we want the file mapped into. The best way to use this is to set it to `NULL` and let the OS choose it for you. If you tell it to use an address the OS doesn't like (for instance, if it's not a multiple of the virtual memory page size), it'll give you an error.|
-|`len`|This parameter is the length of the data we want to map into memory. This can be any length you want. (Aside: if `len` not a multiple of the virtual memory page size, you will get a blocksize that is rounded up to that size. The extra bytes will be 0, and any changes you make to them will not modify the file.)|
-|`prot`|The "protection" argument allows you to specify what kind of access this process has to the memory mapped region. This can be a bitwise-ORd mixture of the following values: `PROT_READ`, `PROT_WRITE`, and `PROT_EXEC`, for read, write, and execute permissions, respectively. The value specified here must be equivalent to or a subset of the modes specified in the `open()` system call that is used to get the file descriptor.|
-|`flags`|These are just miscellaneous flags that can be set for the system call. You'll want to set it to `MAP_SHARED` if you're planning to share your changes to the file with other processes, or `MAP_PRIVATE` otherwise. If you set it to the latter, your process will get a copy of the mapped region, so any changes you make to it will not be reflected in the original file---thus, other processes will not be able to see them. We won't talk about `MAP_PRIVATE` here at all, since it doesn't have much to do with IPC.|
-|`fildes`|This is where you put that file descriptor you opened earlier.|
-|`off`|This is the offset in the file that you want to start mapping from. A restriction: this _must_ be a multiple of the virtual memory page size. This page size can be obtained with a call to `getpagesize()`. Note that 32-bit systems may support files with sizes that cannot be expressed by 32-bit unsigned integers, so this type is often a 64-bit type on such systems.|
+|`addr`|Đây là địa chỉ ta muốn file được ánh xạ vào. Cách tốt nhất để dùng cái này là đặt nó thành `NULL` và để hệ điều hành chọn cho bạn. Nếu bạn bảo nó dùng địa chỉ mà hệ điều hành không thích (ví dụ nếu nó không phải bội số của kích thước trang bộ nhớ ảo), nó sẽ báo lỗi.|
+|`len`|Tham số này là độ dài dữ liệu ta muốn ánh xạ vào bộ nhớ. Có thể là bất kỳ độ dài nào bạn muốn. (Lưu ý: nếu `len` không phải bội số của kích thước trang bộ nhớ ảo, bạn sẽ nhận được một kích thước khối được làm tròn lên đến kích thước đó. Các byte thêm sẽ là 0, và bất kỳ thay đổi nào bạn thực hiện với chúng sẽ không sửa đổi file.)|
+|`prot`|Đối số "bảo vệ" cho phép bạn chỉ định loại truy cập tiến trình này có đối với vùng được ánh xạ bộ nhớ. Đây có thể là sự kết hợp OR theo bit của các giá trị sau: `PROT_READ`, `PROT_WRITE`, và `PROT_EXEC`, lần lượt cho quyền đọc, ghi, và thực thi. Giá trị được chỉ định ở đây phải tương đương hoặc là tập con của các chế độ được chỉ định trong syscall `open()` được dùng để lấy file descriptor.|
+|`flags`|Đây chỉ là các flag linh tinh có thể được đặt cho syscall. Bạn sẽ muốn đặt nó thành `MAP_SHARED` nếu bạn định chia sẻ các thay đổi của mình vào file với các tiến trình khác, hoặc `MAP_PRIVATE` trong trường hợp khác. Nếu bạn đặt nó thành cái sau, tiến trình của bạn sẽ nhận được một bản sao của vùng được ánh xạ, vì vậy bất kỳ thay đổi nào bạn thực hiện sẽ không được phản ánh trong file gốc---do đó, các tiến trình khác sẽ không thể thấy chúng. Ta sẽ không nói về `MAP_PRIVATE` ở đây, vì nó không liên quan nhiều đến IPC.|
+|`fildes`|Đây là nơi bạn đặt file descriptor bạn đã mở trước đó.|
+|`off`|Đây là offset trong file mà bạn muốn bắt đầu ánh xạ từ đó. Một hạn chế: offset này _phải_ là bội số của kích thước trang bộ nhớ ảo. Kích thước trang này có thể lấy bằng lệnh gọi `getpagesize()`. Lưu ý rằng các hệ thống 32-bit có thể hỗ trợ các file có kích thước không thể biểu diễn bằng số nguyên không dấu 32-bit, vì vậy kiểu này thường là kiểu 64-bit trên các hệ thống như vậy.|
 
-As for return values, as you might have guessed, `mmap()` returns
-`MAP_FAILED` on error (the value `-1` properly cast to be compared), and
-sets `errno`. Otherwise, it returns a pointer to the start of the mapped
-data.
+Về giá trị trả về, như bạn có thể đã đoán, `mmap()` trả về `MAP_FAILED`
+khi lỗi (giá trị `-1` được cast phù hợp để so sánh), và đặt `errno`.
+Ngược lại, nó trả về con trỏ đến điểm bắt đầu dữ liệu được ánh xạ.
 
-Anyway, without any further ado, we'll do a short demo that maps the
-second "page" of a file into memory. First we'll `open()` it to get the
-file descriptor, then we'll use `getpagesize()` to get the size of a
-virtual memory page and use this value for both the `len` and the `off`.
-In this way, we'll start mapping at the second page, and map for one
-page's length. (On my Linux box, the page size is 4K.)
+Dù sao, không dài dòng thêm nữa, ta sẽ làm một bản demo ngắn ánh xạ
+"trang" thứ hai của file vào bộ nhớ. Đầu tiên ta sẽ `open()` nó để lấy
+file descriptor, rồi ta sẽ dùng `getpagesize()` để lấy kích thước của
+một trang bộ nhớ ảo và sử dụng giá trị này cho cả `len` và `off`. Theo
+cách này, ta sẽ bắt đầu ánh xạ từ trang thứ hai, và ánh xạ trong độ dài
+một trang. (Trên máy Linux của tôi, kích thước trang là 4K.)
 
 ``` {.c}
 #include <unistd.h>
@@ -86,55 +85,54 @@ pagesize = getpagesize();
 data = mmap((void*)0, pagesize, PROT_READ, MAP_SHARED, fd, pagesize);
 ```
 
-Once this code stretch has run, you can access the first byte of the
-mapped section of file using `data[0]`. Notice there's a lot of type
-conversion going on here. For instance, `mmap()` returns `void*`, but we
-treat it as a `char*`.
+Sau khi đoạn code này chạy, bạn có thể truy cập byte đầu tiên của phần
+được ánh xạ của file bằng `data[0]`. Lưu ý có nhiều phép cast kiểu xảy
+ra ở đây. Ví dụ, `mmap()` trả về `void*`, nhưng ta xử lý nó như `char*`.
 
-Also notice that we've mapped the file `PROT_READ` so we have read-only
-access. Any attempt to write to the data (`data[0] = 'B'`, for example)
-will cause a segmentation violation. Open the file `O_RDWR` with `prot`
-set to `PROT_READ|PROT_WRITE` if you want read-write access to the data.
+Ngoài ra hãy lưu ý rằng ta đã ánh xạ file `PROT_READ` nên ta có quyền
+truy cập chỉ đọc. Bất kỳ nỗ lực nào ghi vào dữ liệu (`data[0] = 'B'`,
+ví dụ) sẽ gây ra vi phạm phân đoạn. Mở file `O_RDWR` với `prot` được
+đặt thành `PROT_READ|PROT_WRITE` nếu bạn muốn truy cập đọc-ghi vào dữ
+liệu.
 
-## Unmapping the file
+## Hủy Ánh Xạ File
 
-There is, of course, a `munmap()` function to un-memory map a file:
+Tất nhiên có một hàm `munmap()` để hủy ánh xạ bộ nhớ cho file:
 
 ``` {.c}
 int munmap(void *addr, size_t len);
 ```
 
-This simply unmaps the region pointed to by `addr` (returned from
-`mmap()`) with length `len` (same as the `len` passed to `mmap()`).
-`munmap()` returns `-1` on error and sets the `errno` variable.
+Hàm này đơn giản hủy ánh xạ vùng trỏ bởi `addr` (được trả về từ
+`mmap()`) với độ dài `len` (giống với `len` được truyền vào `mmap()`).
+`munmap()` trả về `-1` khi lỗi và đặt biến `errno`.
 
-Once you've unmapped a file, any attempts to access the data through the
-old pointer will result in a segmentation fault. You have been warned!
+Sau khi bạn hủy ánh xạ file, bất kỳ nỗ lực nào truy cập dữ liệu qua con
+trỏ cũ sẽ gây ra lỗi phân đoạn. Bạn đã được cảnh báo!
 
-A final note: the file will automatically unmap if your program exits,
-of course.
+Một lưu ý cuối: file sẽ tự động hủy ánh xạ khi chương trình của bạn
+thoát, tất nhiên.
 
-## Concurrency, again?!
+## Đồng Thời, Lại Nữa?!
 
-If you have multiple processes manipulating the data in the same file
-concurrently, you could be in for troubles. You might have to [lock the
-file](#flocking) or use [semaphores](#svsemaphores) to regulate access
-to the file while a process messes with it. Look at the [Shared
-Memory](#svshmcon) document for a (very little bit) more concurrency
-information.
+Nếu bạn có nhiều tiến trình thao tác dữ liệu trong cùng một file đồng
+thời, bạn có thể gặp rắc rối. Bạn có thể phải [khóa file](#flocking)
+hoặc dùng [semaphore](#svsemaphores) để điều phối truy cập vào file trong
+khi một tiến trình can thiệp vào nó. Hãy xem tài liệu [Bộ Nhớ Dùng
+Chung](#svshmcon) để có thêm (rất ít) thông tin về tính đồng thời.
 
-## A Simple Sample
+## Một Mẫu Đơn Giản
 
-Well, it's code time again. I've got here a demo program that maps its
-own source to memory and prints the byte that's found at whatever offset
-you specify on the command line.
+Vâng, lại đến lúc code rồi. Tôi có ở đây một chương trình demo ánh xạ
+mã nguồn của chính nó vào bộ nhớ và in byte tìm thấy ở bất kỳ offset nào
+bạn chỉ định trên dòng lệnh.
 
-The program restricts the offsets you can specify to the range 0 through
-the file length. The file length is obtained through a call to `stat()`
-which you might not have seen before. It returns a structure full of
-file info, one field of which is the size in bytes. Easy enough.
+Chương trình hạn chế các offset bạn có thể chỉ định trong phạm vi 0 đến
+độ dài file. Độ dài file được lấy qua lệnh gọi `stat()` mà bạn có thể
+chưa thấy trước đây. Nó trả về một cấu trúc đầy thông tin file, một
+trường trong đó là kích thước tính bằng byte. Đơn giản thôi.
 
-Here is the source for [flx[`mmapdemo.c`|mmapdemo.c]]:
+Đây là mã nguồn cho [flx[`mmapdemo.c`|mmapdemo.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -188,61 +186,64 @@ int main(int argc, char *argv[])
 }
 ```
 
-That's all there is to it. Compile that sucker up and run it with some
-command line like:
+Đó là tất cả những gì cần làm. Biên dịch cái đó và chạy với một số dòng
+lệnh như:
 
 ``` {.default}
 $ mmapdemo 30
 byte at offset 30 is 'e'
 ```
 
-I'll leave it up to you to write some really cool programs using this
-system call.
+Tôi để lại cho bạn viết một số chương trình thực sự thú vị bằng syscall
+này.
 
-## Anonymous Memory Mapping
+## Ánh Xạ Bộ Nhớ Ẩn Danh
 
-It's possible to `mmap()` a region that's **not** backed by a file. It's
-just some zeroed-out memory that you suddenly have access to. Kinda like
-with `malloc()`, but, as we'll see, with a big important difference.
+Bạn có thể `mmap()` một vùng **không** được hỗ trợ bởi file. Đó chỉ là
+một vùng nhớ được đặt về không mà bạn đột nhiên có quyền truy cập. Có
+vẻ giống `malloc()`, nhưng, như ta sẽ thấy, có một điểm khác biệt quan
+trọng lớn.
 
-Seems weird to want to do this—changes you make only exist in memory and
-are not persisted on disk—but it actually provides a nice way to set up
-some shared memory between related processes.
+Có vẻ kỳ lạ khi muốn làm điều này---các thay đổi bạn thực hiện chỉ tồn
+tại trong bộ nhớ và không được lưu trên đĩa---nhưng nó thực sự cung cấp
+một cách hay để thiết lập bộ nhớ dùng chung giữa các tiến trình liên
+quan.
 
-> **Note that this isn't supported by POSIX.** That said, it's defined
-> in Linux and BSD (including MacOS), so we have pretty good coverage
-> over all popular platforms.
+> **Lưu ý rằng điều này không được POSIX hỗ trợ.** Điều đó nói, nó được
+> định nghĩa trên Linux và BSD (bao gồm MacOS), vì vậy ta có độ phủ khá
+> tốt trên tất cả các nền tảng phổ biến.
 >
-> Caveat #1: Some platforms historically defined `MAP_ANON`, but I think
-> they've mostly all also gone with `MAP_ANONYMOUS` now. So the latter
-> is the more portable bet.
+> Lưu ý #1: Một số nền tảng trước đây định nghĩa `MAP_ANON`, nhưng tôi
+> nghĩ hầu hết đã chuyển sang `MAP_ANONYMOUS`. Vì vậy cái sau là lựa
+> chọn khả chuyển hơn.
 >
-> Caveat #2: Some platforms don't care what you specify as the file
-> descriptor with anonymous mappings, but MacOS wants it to be `-1`, so
-> use that.
+> Lưu ý #2: Một số nền tảng không quan tâm bạn chỉ định gì là file
+> descriptor với các ánh xạ ẩn danh, nhưng MacOS muốn nó là `-1`, vì
+> vậy hãy dùng giá trị đó.
 
-(Another use for this kind of `mmap()` is if you're writing your own
-memory allocator as a peer to `malloc()`. In that case, you'll need to
-get chunks of memory straight from the OS, and anonymous `mmap()` is a
-great way to do that. But that's not IPC, so we won't get into it.)
+(Một cách dùng khác cho loại `mmap()` này là nếu bạn đang viết bộ cấp
+phát bộ nhớ riêng của mình tương tự `malloc()`. Trong trường hợp đó,
+bạn sẽ cần lấy các khối bộ nhớ trực tiếp từ hệ điều hành, và `mmap()`
+ẩn danh là một cách tuyệt vời để làm điều đó. Nhưng đó không phải IPC,
+vì vậy ta sẽ không đi vào đó.)
 
-Let's do a demo. This program will:
+Hãy làm một bản demo. Chương trình này sẽ:
 
-1. Create a chunk of shared, anonymous (i.e. not backed by a file)
-   memory using `mmap()`.
-2. Fork a child process that will:
-   * Sleep for one second
-   * Print what's in shared memory.
-3. The parent process will:
-   * Store a string in shared memory.
-   * Wait for the child to complete.
-4. Then both parent and child will `munmap()` the memory, freeing it.
+1. Tạo một khối bộ nhớ dùng chung, ẩn danh (tức là không được hỗ trợ
+   bởi file) bằng `mmap()`.
+2. Fork một tiến trình con sẽ:
+   * Ngủ một giây
+   * In những gì có trong bộ nhớ dùng chung.
+3. Tiến trình cha sẽ:
+   * Lưu một chuỗi vào bộ nhớ dùng chung.
+   * Đợi tiến trình con hoàn tất.
+4. Sau đó cả cha và con sẽ `munmap()` bộ nhớ, giải phóng nó.
 
-The big elephant-in-the-room difference is that we don't call `open()`
-anywhere, and we don't have a file descriptor to pass to `mmap()`. We'll
-just set that to `-1` and the offset to `0`.
+Điểm khác biệt con voi trong phòng lớn là ta không gọi `open()` ở bất
+cứ đâu, và ta không có file descriptor để truyền vào `mmap()`. Ta sẽ chỉ
+đặt cái đó thành `-1` và offset thành `0`.
 
-Here is the source for [flx[`mmap_anon.c`|mmap_anon.c]]:
+Đây là mã nguồn cho [flx[`mmap_anon.c`|mmap_anon.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -292,62 +293,60 @@ int main(void)
 }
 ```
 
-"Concurrency, again, again?!" You might have noticed that there's really
-no synchronization between the parent and the child. I just glazed over
-it by having the child sleep so that we could be highly confident that
-the parent had already written the data. That's not really good enough
-in any practical sense, so you might have to do more with semaphores or
-something similar to get the coordination you need to not have
-everything explode.
+"Đồng thời, lại nữa, lại nữa?!" Bạn có thể nhận thấy rằng thực sự
+không có sự đồng bộ hóa nào giữa cha và con. Tôi chỉ lách qua bằng cách
+để con ngủ để ta có thể khá chắc chắn rằng cha đã ghi dữ liệu xong. Điều
+đó thực sự không đủ tốt theo bất kỳ nghĩa thực tế nào, vì vậy bạn có
+thể phải làm thêm với semaphore hoặc thứ gì đó tương tự để có sự phối
+hợp bạn cần để không có mọi thứ nổ tung.
 
-And, really, if you have access to `pthreads`, just use that in this
-case. Everything else is just reinventing that wheel.
+Và thực ra, nếu bạn có quyền truy cập `pthreads`, chỉ cần dùng nó trong
+trường hợp này. Mọi thứ khác chỉ là tái phát minh cái bánh xe đó.
 
-## Observations on memory mapping
+## Nhận Xét Về Ánh Xạ Bộ Nhớ
 
-I would be remiss if I didn't point out a few interesting aspects of
-using mapped files on Linux. First, the memory that the operating system
-allocates to use as the storage for the mapped file data is _the same
-memory_ used to perform file buffering operations when other processes
-perform `read()` and `write()` operations! While `read()`s and
-`write()`s are guaranteed atomic by POSIX up to a certain size, that
-goes out the window when some processes bypass the POSIX functions
-entirely!
+Tôi sẽ thiếu sót nếu không chỉ ra một vài khía cạnh thú vị của việc sử
+dụng file được ánh xạ trên Linux. Đầu tiên, bộ nhớ mà hệ điều hành phân
+bổ để sử dụng làm bộ nhớ đệm cho dữ liệu file được ánh xạ là _cùng bộ
+nhớ_ được sử dụng để thực hiện các thao tác đệm file khi các tiến trình
+khác thực hiện các thao tác `read()` và `write()`! Trong khi các `read()`
+và `write()` được đảm bảo là atomic bởi POSIX đến một kích thước nhất
+định, điều đó sẽ bị phá vỡ khi một số tiến trình bỏ qua hoàn toàn các
+hàm POSIX!
 
-Second, because we're bypassing those POSIX functions, we can read and
-write the buffer contents without regard to record locking that might be
-applied to the file descriptor (as discussed in a previous section).
-Normally, this isn't a big deal---who's going to use memory mapped files
-in one application while using record locking in another, when both
-access the same file? If the file is documented to require record
-locking, then all applications should use it. That said, there's nothing
-stopping an application from using the read and write locking we
-discussed previously immediately before updating the memory that belongs
-to the mapped file.
+Thứ hai, vì ta đang bỏ qua các hàm POSIX đó, ta có thể đọc và ghi nội
+dung buffer mà không cần quan tâm đến việc khóa bản ghi có thể được áp
+dụng cho file descriptor (như đã thảo luận trong một phần trước). Thông
+thường, điều này không phải là vấn đề lớn---ai sẽ dùng file được ánh xạ
+bộ nhớ trong một ứng dụng trong khi dùng khóa bản ghi trong ứng dụng
+khác, khi cả hai đều truy cập cùng file? Nếu file được ghi lại yêu cầu
+khóa bản ghi, thì tất cả các ứng dụng nên dùng nó. Điều đó nói, không
+có gì ngăn một ứng dụng sử dụng khóa đọc và ghi ta đã thảo luận trước
+đó ngay trước khi cập nhật bộ nhớ thuộc về file được ánh xạ.
 
-Third, because we're bypassing those POSIX functions (do I sound like a
-broken record yet?), the system is not capable of providing meaningful
-readahead or writebehind strategies. As of this writing, Linux kernel
-versions 4.x and later _do_ implement an algorithm that detects when two
-adjacent page faults occur within a memory mapped file, and it performs
-a minimal amount of readahead (just two pages, compared to the readahead
-configurable at the file system layer, which can be upwards of 256KB).
-There is no writebehind whatsoever, as there's no practical way to
-detect when adjacent pages are written to under current hardware
-configurations.
+Thứ ba, vì ta đang bỏ qua các hàm POSIX đó (tôi nghe có vẻ như đĩa hát
+bị rách không?), hệ thống không có khả năng cung cấp các chiến lược
+readahead hoặc writebehind có ý nghĩa. Tính đến thời điểm viết bài này,
+các phiên bản kernel Linux 4.x trở lên _có_ triển khai một thuật toán
+phát hiện khi hai page fault liền nhau xảy ra trong một file được ánh xạ
+bộ nhớ, và nó thực hiện một lượng readahead tối thiểu (chỉ hai trang, so
+với readahead có thể cấu hình ở lớp hệ thống file, có thể lên đến 256KB).
+Hoàn toàn không có writebehind, vì không có cách thực tế nào để phát
+hiện khi các trang liền kề được ghi dưới các cấu hình phần cứng hiện tại.
 
-Last, given all of the above, there are still very compelling reasons to
-use memory mapped files. The primary one being that such files are, by
-definition, "persistent storage", meaning applications do not have to
-create lengthy `load()`/`save()` functions for their data if they use
-memory mapped files. However, any binary data will be written in a
-platform dependent manner (such as endianness) so those files are likely
-not portable.
+Cuối cùng, với tất cả những điều trên, vẫn có những lý do rất hấp dẫn
+để sử dụng file được ánh xạ bộ nhớ. Lý do chính là các file như vậy,
+theo định nghĩa, là "bộ nhớ lưu trữ lâu dài", có nghĩa là các ứng dụng
+không phải tạo các hàm `load()`/`save()` dài dòng cho dữ liệu của chúng
+nếu chúng sử dụng file được ánh xạ bộ nhớ. Tuy nhiên, bất kỳ dữ liệu
+nhị phân nào sẽ được ghi theo cách phụ thuộc nền tảng (như thứ tự byte)
+vì vậy các file đó có thể không khả chuyển.
 
-## Summary
+## Tóm Tắt
 
-Memory mapped files can be very useful, especially on systems that don't
-support shared memory segments. In fact, the two are very similar in
-most respects. (Memory mapped files are committed to disk, too, so this
-could even be an advantage, yes?)  With file locking or semaphores, data
-in a memory mapped file can easily be shared between multiple processes.
+File được ánh xạ bộ nhớ có thể rất hữu ích, đặc biệt trên các hệ thống
+không hỗ trợ các vùng nhớ dùng chung. Thực ra, cả hai rất giống nhau
+trong hầu hết các khía cạnh. (File được ánh xạ bộ nhớ cũng được commit
+vào đĩa, vì vậy đây thậm chí có thể là một lợi thế, phải không?) Với
+khóa file hoặc semaphore, dữ liệu trong một file được ánh xạ bộ nhớ có
+thể dễ dàng được chia sẻ giữa nhiều tiến trình.
