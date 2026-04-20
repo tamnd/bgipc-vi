@@ -7,12 +7,12 @@
 <!-- References -->
 <!-- ======================================================= -->
 
-# More IPC Resources {#references}
+# Tài Nguyên IPC Bổ Sung {#references}
 
-## Books
+## Sách
 
-Here are some books that describe some of the procedures I've discussed
-in this guide, as well as Unix details in specific:
+Dưới đây là một số cuốn sách mô tả một số quy trình tôi đã thảo luận
+trong hướng dẫn này, cũng như các chi tiết Unix cụ thể:
 
 Bach, Maurice J. _The Design of the UNIX Operating System_. Published by
 Prentice-Hall, 1986. ISBN [flr[0132017997|unixdesign]].
@@ -24,31 +24,30 @@ by Prentice Hall. ISBNs for volumes 1-2: [flr[0131411551|unixnet1]],
 W. Richard Stevens. _Advanced Programming in the UNIX Environment_.
 Published by Addison Wesley. ISBN [flr[0201433079|advunix]].
 
-## Other online documentation
+## Tài Liệu Trực Tuyến Khác
 
-[fl[**UNIX Network Programming Volume 2 home
-page**|http://www.kohala.com/start/unpv22e/unpv22e.html]]---includes
-source code from Stevens' superfine book.
+[fl[**Trang chủ UNIX Network Programming Volume 2**|http://www.kohala.com/start/unpv22e/unpv22e.html]]---bao
+gồm mã nguồn từ cuốn sách xuất sắc của Stevens.
 
-[fl[**The Linux Programmer's
-Guide**|http://tldp.org/LDP/lpg/node7.html]]---in-depth section on IPC.
+[fl[**Hướng Dẫn Lập Trình Viên Linux**|http://tldp.org/LDP/lpg/node7.html]]---phần
+chuyên sâu về IPC.
 
 [fl[**UNIX System Calls and Subroutines using
-C**|https://users.cs.cf.ac.uk/Dave.Marshall/C/]]---contains modest IPC
-information.
+C**|https://users.cs.cf.ac.uk/Dave.Marshall/C/]]---chứa một số thông tin
+IPC khiêm tốn.
 
-[fl[**The Linux Kernel**|https://tldp.org/LDP/tlk/ipc/ipc.html]]---how
-the Linux kernel implements IPC.
+[fl[**Nhân Linux**|https://tldp.org/LDP/tlk/ipc/ipc.html]]---cách nhân
+Linux triển khai IPC.
 
 <!-- ======================================================= -->
 <!-- Linux man pages -->
 <!-- ======================================================= -->
 
-## Linux man pages
+## Trang Man Linux
 
-There are Linux manual pages. If you run another flavor of Unix,
-please look at your own man pages, as these might not work on your
-system.
+Đây là các trang hướng dẫn Linux. Nếu bạn chạy một phiên bản Unix khác,
+hãy xem các trang man của riêng bạn, vì những trang này có thể không
+hoạt động trên hệ thống của bạn.
 
 * [flm[`accept()`|accept.2]],
 * [flm[`bind()`|bind.2]],
@@ -102,4 +101,3 @@ system.
 * [flm[`wait()`|wait.2]],
 * [flm[`waitpid()`|waitpid.2]],
 * [flm[`write()`|write.2]].
-
