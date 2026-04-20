@@ -1,0 +1,12 @@
+# Build outputs — use specific prefix to avoid excluding pipe1.pdf
+src_vi/bgipc*.pdf
+src_vi/bgipc*.epub
+src_vi/bgipc*.html
+src_vi/bgipc*.zip
+src_vi/split/
+src_vi/split-wide/
+src_vi/temp/
+docs/
+
+# OS
+.DS_Store
