@@ -7,48 +7,48 @@
 <!-- Signals Part 2 -->
 <!-- ======================================================= -->
 
-# Signals Part II
+# Signals Phần II
 
-In this section of the guide, we're going to look at how to block
-signals, and some best practices for writing signal handler functions
-without getting into serious trouble. But first, let's have some
-devilish details.
+Trong phần này của hướng dẫn, chúng ta sẽ xem xét cách chặn signal, và
+một số thực hành tốt nhất để viết các hàm signal handler mà không gặp
+rắc rối nghiêm trọng. Nhưng trước tiên, hãy đi vào một số chi tiết tinh
+tế.
 
-## Edge Cases
+## Các Trường Hợp Biên
 
-Let's talk weird stuff.
+Hãy nói về những thứ kỳ lạ.
 
-What happens if your signal handler is running and another signal
-arrives? Sensibly, by default, the second signal is deferred until after
-the signal handler finishes[^a399].
+Điều gì xảy ra nếu signal handler của bạn đang chạy và một signal khác
+đến? Một cách hợp lý, theo mặc định, signal thứ hai sẽ bị hoãn lại cho
+đến khi signal handler kết thúc[^a399].
 
-[^a399]: You can override this with `SA_NODEFER` in your `sa_flags`, but
-    that's a sure path to madness.
+[^a399]: Bạn có thể ghi đè điều này với `SA_NODEFER` trong `sa_flags`,
+    nhưng đó chắc chắn là con đường dẫn đến điên loạn.
 
-OK, then... What happens if there's already a deferred signal and
-another one arrives? In that case, the two signals are collapsed into a
-single one and only one will arrive! If you get a signal, you can be
-sure that it was raised one or more times before your handler saw it.
+OK vậy thì... Điều gì xảy ra nếu đã có một signal bị hoãn và một signal
+khác đến? Trong trường hợp đó, hai signal bị gộp thành một và chỉ có một
+cái đến! Nếu bạn nhận được một signal, bạn có thể chắc chắn rằng nó đã
+được phát một hoặc nhiều lần trước khi handler của bạn thấy nó.
 
-So don't expect a *count*. When your handler is called, all you can be
-sure of is that the signal was raised at least once.
+Vì vậy đừng mong đợi một *số lần đếm*. Khi handler của bạn được gọi, tất
+cả những gì bạn có thể chắc chắn là signal đã được phát ít nhất một lần.
 
-Now back to the fun stuff.
+Bây giờ trở lại những thứ thú vị.
 
-## Blocking Signals
+## Chặn Signal
 
-You can block signals from arriving. This doesn't discard the signal; it
-just holds it off for a while. If you're blocking a signal and it
-arrives, nothing will happen... until you unblock it and then it will
-arrive immediately.
+Bạn có thể chặn signal không đến. Điều này không loại bỏ signal; nó chỉ
+giữ chúng lại một lúc. Nếu bạn đang chặn một signal và nó đến, sẽ không
+có gì xảy ra... cho đến khi bạn bỏ chặn và nó sẽ đến ngay lập tức.
 
-You do this with the `sigprocmask()` call[^e0e0]. This manipulates the
-per-process table of signals that are blocked.
+Bạn làm điều này với lệnh gọi `sigprocmask()`[^e0e0]. Hàm này thao tác
+bảng signal bị chặn của từng tiến trình.
 
-[^e0e0]: If you're using POSIX threads, use the equivalent
-    `pthread_sigmask()`, instead, to do this on a per-thread basis.
+[^e0e0]: Nếu bạn đang dùng POSIX thread, hãy dùng tương đương
+    `pthread_sigmask()` thay thế, để thực hiện điều này trên cơ sở
+    từng thread.
 
-Here's the prototype:
+Đây là nguyên mẫu:
 
 ``` {.c}
 #include <signal.h>
@@ -57,20 +57,20 @@ int sigprocmask(int how, const sigset_t *restrict set,
                 sigset_t *restrict oset);
 ```
 
-That's a bit messy, but `how` is saying "block or unblock". And `set` is
-the set of signals to block. Finally, `oset` is the *previous* set of
-blocked signals so you can switch back to it later. You can make `oset`
-`NULL` if you don't care about the previous set.
+Hơi lộn xộn, nhưng `how` đang nói "chặn hay bỏ chặn". Và `set` là tập
+hợp các signal cần chặn. Cuối cùng, `oset` là tập hợp *trước đó* của
+các signal bị chặn để bạn có thể chuyển lại sau. Bạn có thể đặt `oset`
+thành `NULL` nếu bạn không quan tâm đến tập hợp trước đó.
 
-The `how` field can be set to three amazing things:
+Trường `how` có thể được đặt thành ba thứ tuyệt vời:
 
-|`how`|Description|
+|`how`|Mô tả|
 |-----|----------------------------------------------------|
-|`SIG_BLOCK`|Add signals to the current list of blocked signals.|
-|`SIG_UNBLOCK`|Remove signals from the current list of blocked signals.|
-|`SIG_SETMASK`|Set the current list of blocked signals to exactly this.|
+|`SIG_BLOCK`|Thêm signal vào danh sách signal đang bị chặn hiện tại.|
+|`SIG_UNBLOCK`|Loại bỏ signal khỏi danh sách signal đang bị chặn hiện tại.|
+|`SIG_SETMASK`|Đặt danh sách signal đang bị chặn hiện tại chính xác thành danh sách này.|
 
-So let's give it a shot in this demo, [flx[`sigblock.c`|sigblock.c]]:
+Vậy hãy thử trong demo này, [flx[`sigblock.c`|sigblock.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -100,23 +100,23 @@ int main(void)
 }
 ```
 
-If you hit `CTRL-C` during the `sleep()`, you'll find the program isn't
-interrupted. You're generating `SIGINT`s, but they're blocked. And
-they'll be delivered as soon as they're unblocked, which happens with
-the `sigprocmask(SIG_SETMASK...` on line 22.
+Nếu bạn nhấn `CTRL-C` trong khi `sleep()`, bạn sẽ thấy chương trình
+không bị ngắt. Bạn đang tạo ra `SIGINT`, nhưng chúng bị chặn. Và chúng
+sẽ được gửi ngay khi bị bỏ chặn, điều xảy ra với `sigprocmask(SIG_SETMASK...`
+ở dòng 22.
 
-And because they're unblocked and we're using the default handler (which
-exits), the process will exit right after we unblock them, **before**
-the last `puts()`.
+Và vì chúng bị bỏ chặn và chúng ta đang dùng default handler (thoát),
+tiến trình sẽ thoát ngay sau khi chúng ta bỏ chặn chúng, **trước** khi
+`puts()` cuối cùng.
 
-## Signal Handler Function Practices
+## Thực hành Hàm Signal Handler
 
-Since signal handler functions are so limited, the general pattern
-programmers like is for the signal handler to really do nothing other
-than notify the main code that has occurred, and that's all.
+Vì các hàm signal handler bị hạn chế như vậy, pattern chung mà các lập
+trình viên thích là để signal handler thực sự không làm gì ngoài việc
+thông báo cho code chính rằng điều gì đó đã xảy ra, và chỉ vậy thôi.
 
-Let's look at a variant of an earlier example. Note this is **not** how
-you should code this.
+Hãy xem một biến thể của ví dụ trước. Lưu ý đây **không** phải là cách
+bạn nên code điều này.
 
 ``` {.c}
 volatile sig_atomic_t signal_happened;
@@ -139,66 +139,62 @@ int main(void)
 }
 ```
 
-You don't want to do this because it just spins chewing up CPU like it's
-going out of style while waiting for the signal. But it is a bare-bones
-example of the general pattern. We just need to get rid of the
-spin-wait.
+Bạn không muốn làm điều này vì nó chỉ quay vòng ngốn CPU như thể không
+có ngày mai trong khi chờ signal. Nhưng đó là một ví dụ cơ bản về
+pattern chung. Chúng ta chỉ cần loại bỏ spin-wait.
 
-This means that we'll put the main process to sleep somehow, for
-example:
+Điều này có nghĩa là chúng ta sẽ cho tiến trình chính ngủ theo cách nào
+đó, ví dụ:
 
 ``` {.c}
 while (!signal_happened) { sleep(1000000); }
 ```
 
-That's better! Assuming you haven't specified `SA_RESTART`, the
-`sleep()` will fail with `EINTR` the moment the signal is raised and
-you'll break out of the loop. Sure, it wakes up to check every
-eleven-and-a-half days, and that uses some CPU, but that's something I
-can live with.
+Tốt hơn rồi! Giả sử bạn không chỉ định `SA_RESTART`, `sleep()` sẽ thất
+bại với `EINTR` ngay khi signal được phát và bạn sẽ thoát khỏi vòng lặp.
+Đúng là nó thức dậy để kiểm tra mỗi mười một ngày rưỡi, và điều đó dùng
+một chút CPU, nhưng đó là điều tôi có thể chấp nhận.
 
-And, like we saw before, the great thing here is that the signal handler
-didn't do anything except do an atomic write to a global. Everything
-else is handled cleanly by the program so we don't have to worry about
-non-atomic writes or race conditions.
+Và, như chúng ta đã thấy trước đó, điều tuyệt vời ở đây là signal
+handler đã không làm gì ngoài việc thực hiện một ghi atomic vào một
+biến global. Mọi thứ khác được xử lý gọn gàng bởi chương trình, vì vậy
+chúng ta không phải lo lắng về các ghi không-atomic hoặc race condition.
 
-But that program is so *dull*! It doesn't do anything!
+Nhưng chương trình đó thật *nhàm chán*! Nó không làm gì cả!
 
-What if we want our application to do things **and** handle signals?
-Whoa, don't get crazy.
+Nếu chúng ta muốn ứng dụng làm việc **và** xử lý signal thì sao? Ôi
+thôi, đừng phát điên.
 
-Well, guess what! We have options. I'm going to give two here, and you
-can really use whatever fits. Both of them assume you're using something
-like `select()` or `poll()` to handle asynchronous I/O events and that's
-what's driving your program. Or, at least, they assume that you can
-retrofit your code to do that.
+Đoán xem! Chúng ta có các lựa chọn. Tôi sẽ đưa ra hai ở đây, và bạn
+thực sự có thể dùng bất kỳ cái nào phù hợp. Cả hai đều giả định bạn
+đang sử dụng thứ gì đó như `select()` hoặc `poll()` để xử lý các sự
+kiện I/O bất đồng bộ và đó là thứ điều khiển chương trình của bạn. Hoặc
+ít nhất, chúng giả định rằng bạn có thể điều chỉnh code để làm điều đó.
 
-And if you need a refresher, see [fl[_Beej's Guide to Network
-Programming_|https://beej.us/guide/bgnet/]], in particular the sections
-on
+Và nếu bạn cần ôn lại, hãy xem [fl[_Hướng dẫn Lập trình Mạng của
+Beej_|https://beej.us/guide/bgnet/]], đặc biệt là các phần về
 [fl[`poll()`|https://beej.us/guide/bgnet/html/split/slightly-advanced-techniques.html#poll]]
-and
+và
 [fl[`select()`|https://beej.us/guide/bgnet/html/split/slightly-advanced-techniques.html#select]].
 
-### Using a Pipe
+### Sử dụng Pipe
 
-If you are already using `select()` or `poll()` to wait for events, this
-approach can work for you quite handily.
+Nếu bạn đã sử dụng `select()` hoặc `poll()` để chờ đợi các sự kiện,
+cách tiếp cận này có thể hoạt động cho bạn khá tiện.
 
-The idea is that you're going to make a pipe. The main process adds the
-pipe's read end to its `select()` or `poll()` set of file descriptors
-it's waiting on.
+Ý tưởng là bạn sẽ tạo một pipe. Tiến trình chính thêm đầu đọc của pipe
+vào tập hợp file descriptor mà `select()` hoặc `poll()` của nó đang chờ.
 
-Then, when a signal arrives, the signal handler writes a simple
-identifier into the pipe. Then the main process will return from
-`select()` or `poll()` and you can see what's in the pipe. The
-identifier lets you know what signal was handled.
+Sau đó, khi một signal đến, signal handler ghi một định danh đơn giản
+vào pipe. Sau đó tiến trình chính sẽ trở về từ `select()` hoặc `poll()`
+và bạn có thể xem những gì trong pipe. Định danh cho bạn biết signal nào
+đã được xử lý.
 
-Here's a snippet from the demo program [flx[`pipesig.c`|pipesig.c]]. It
-waits for text entry from `stdin` as well as waiting for information to
-arrive on the pipe. (In this case, we'll use `poll()`, but `select()`
-would work just as well.) It launches a background process that raises
-`SIGUSR1` on the parent process every few seconds.
+Đây là một đoạn từ chương trình demo [flx[`pipesig.c`|pipesig.c]]. Nó
+chờ nhập văn bản từ `stdin` cũng như chờ thông tin đến trên pipe. (Trong
+trường hợp này, chúng ta sẽ dùng `poll()`, nhưng `select()` cũng hoạt
+động tốt như nhau.) Nó khởi động một tiến trình nền phát `SIGUSR1` trên
+tiến trình cha mỗi vài giây.
 
 ``` {.c}
 int pipefd[2];
@@ -210,11 +206,11 @@ void handler(int sig)
 }
 ```
 
-That's it for the signal handler! It just puts an ASCII `1` into the
-pipe. The end.
+Đó là tất cả cho signal handler! Nó chỉ đưa một ký tự ASCII `1` vào
+pipe. Hết.
 
-Let's look at how it's handled (code has been simplified here in the
-text—view the full source to see how it works):
+Hãy xem cách nó được xử lý (code đã được đơn giản hóa ở đây trong văn
+bản---xem nguồn đầy đủ để thấy cách nó hoạt động):
 
 ``` {.c}
 struct pollfd pollfds[2] = {
@@ -248,17 +244,18 @@ else if ((pollfds[1].revents & POLLIN)) {
 }
 ```
 
-There we set up our `pollfds` array to watch file descriptor `0`
-(standard input likely from the keyboard) and file descriptor
-`pipefd[0]`, the read end of the pipe.
+Ở đó chúng ta thiết lập mảng `pollfds` để theo dõi file descriptor `0`
+(standard input có thể từ bàn phím) và file descriptor `pipefd[0]`, đầu
+đọc của pipe.
 
-If we get something from `stdin`, we handle that by printing it out. If
-we get something on the pipe, we check the identifier and print out what
-happened. (Clearly I have some issues here if more than 1024 signals
-happen before I wake up to handle the `poll()`, but fixing that is left
-as an exercise for you and your high-performance computing environment.)
+Nếu chúng ta nhận được gì đó từ `stdin`, chúng ta xử lý nó bằng cách
+in ra. Nếu chúng ta nhận được gì đó trên pipe, chúng ta kiểm tra định
+danh và in ra điều gì đã xảy ra. (Rõ ràng tôi có một số vấn đề ở đây
+nếu có hơn 1024 signal xảy ra trước khi tôi thức dậy để xử lý `poll()`,
+nhưng việc sửa điều đó được để lại như một bài tập cho bạn và môi trường
+tính toán hiệu năng cao của bạn.)
 
-Here's some output from a sample run:
+Đây là một số đầu ra từ một lần chạy mẫu:
 
 ``` {.default}
 Enter lines of text, or "quit" to quit.
@@ -273,23 +270,23 @@ quit
 Quitting, sending SIGTERM to child
 ```
 
-It's pretty straightforward. Yes, the signal handler is calling
-`write()` and using a global pipe descriptor that isn't atomic, but we
-only set the pipe descriptor at the beginning of the run before the
-signal handler is installed. And we don't modify it after that. So
-relative safety is assured.
+Khá đơn giản. Đúng, signal handler đang gọi `write()` và dùng một pipe
+descriptor global không phải atomic, nhưng chúng ta chỉ đặt pipe
+descriptor ở đầu lần chạy trước khi signal handler được cài đặt. Và
+chúng ta không sửa đổi nó sau đó. Vì vậy sự an toàn tương đối được đảm
+bảo.
 
-### Using `pselect()`
+### Sử dụng `pselect()`
 
-If you're already using `select()`, this might be an even cleaner way
-than pipes to notify the process that a signal has occurred.
+Nếu bạn đã dùng `select()`, đây có thể là cách sạch hơn so với pipe để
+thông báo cho tiến trình rằng một signal đã xảy ra.
 
-Some clever Unix hacker found themselves thinking this way: what if
-there were a version of `select()` that could wake up when one of a
-particular set of signals was raised? And it could do this in addition
-to all the file descriptor monitoring it normally does?
+Một hacker Unix thông minh đã nghĩ theo cách này: nếu có một phiên bản
+của `select()` có thể thức dậy khi một trong số các signal cụ thể được
+phát? Và nó có thể làm điều này ngoài tất cả việc giám sát file
+descriptor mà nó thường làm?
 
-And so they made that.
+Và vì vậy họ đã tạo ra điều đó.
 
 ``` {.c}
 #include <sys/select.h>
@@ -302,44 +299,43 @@ int pselect(int nfds,
             const sigset_t *restrict sigmask);
 ```
 
-Looks like `select()`, right? The only differences are:
+Trông giống `select()` phải không? Sự khác biệt duy nhất là:
 
-* Timeout is a `struct timespec` instead of a `struct timeval`.
-* We have that `sigmask` as a final parameter.
+* Timeout là `struct timespec` thay vì `struct timeval`.
+* Chúng ta có `sigmask` như tham số cuối.
 
-For the demo, we'll leave `timeout` as `NULL` so it never times out, but
-you could absolutely add it if you wanted.
+Trong demo, chúng ta sẽ để `timeout` là `NULL` nên nó không bao giờ hết
+thời gian, nhưng bạn hoàn toàn có thể thêm vào nếu muốn.
 
-And the `sigmask` should hold a set of signals that are to be blocked
-during the `pselect()` call... which should **not** include the signal
-you're handing!
+Và `sigmask` nên giữ một tập hợp các signal cần bị chặn trong khi gọi
+`pselect()`... cái mà **không** nên bao gồm signal bạn đang xử lý!
 
-That seems like nonsense. Let's look at the overall approach the main
-process will take:
+Nghe có vẻ vô nghĩa. Hãy xem cách tiếp cận tổng thể mà tiến trình chính
+sẽ thực hiện:
 
-1. Set up the signal handler, say for `SIGUSR1`.
-2. Block `SIGUSR1` with `sigprocmask()`.
-3. Call `pselect()` with a `sigmask` that does **not** include
-   `SIGUSR1`.
-4. When `pselect()` returns, check to see if it was due to a signal.
+1. Thiết lập signal handler, giả sử cho `SIGUSR1`.
+2. Chặn `SIGUSR1` với `sigprocmask()`.
+3. Gọi `pselect()` với `sigmask` **không** bao gồm `SIGUSR1`.
+4. Khi `pselect()` trả về, kiểm tra xem có phải do signal không.
 
-So if `SIGUSR1` is blocked, how does it get through? This the magic
-beans part.
+Vậy nếu `SIGUSR1` bị chặn, làm sao nó lọt qua được? Đây là phần ma
+thuật.
 
-`pselect()` takes the `sigmask` you pass it and sets the process signal
-mask to it. Let's say you pass it an empty set. In that case, no signals
-would be blocked, and they'd all get through. So while you're in the
-call to `pselect()`, `SIGUSR1` isn't blocked and it can work.
+`pselect()` lấy `sigmask` bạn truyền vào và đặt signal mask của tiến
+trình thành nó. Giả sử bạn truyền một tập hợp rỗng. Trong trường hợp đó,
+không có signal nào bị chặn, và tất cả chúng sẽ lọt qua. Vì vậy trong
+khi bạn đang gọi `pselect()`, `SIGUSR1` không bị chặn và nó có thể hoạt
+động.
 
-And then (for the other magic beans part), after the signal comes in,
-`pselect()` *restores* the process signal mask to whatever it was
-before.
+Và rồi (cho phần ma thuật kia), sau khi signal đến, `pselect()` *khôi
+phục* signal mask của tiến trình về trạng thái trước đó.
 
-The practical upshot of all this is that your process has blocked
-`SIGUSR1` everywhere *except* while `pselect()` is being called! This
-gives you central control over when to handle signals and what to do.
+Kết quả thực tế của tất cả điều này là tiến trình của bạn đã chặn
+`SIGUSR1` ở mọi nơi *ngoại trừ* trong khi `pselect()` đang được gọi!
+Điều này cho bạn quyền kiểm soát trung tâm về thời điểm xử lý signal và
+phải làm gì.
 
-The pseudocode for `pselect()` looks vaguely like this:
+Pseudocode cho `pselect()` trông gần như thế này:
 
 ``` {.python}
 pselect(readset, timeout, sigmask):
@@ -348,13 +344,12 @@ pselect(readset, timeout, sigmask):
     sigprocmask(SIG_SETMASK, oldmask, NULL);
 ```
 
-The key feature is that, this being a syscall, this all happens
-atomically from our perspective. We couldn't write this in user space
-without is being all racy.
+Tính năng chính là, vì đây là một syscall, tất cả điều này xảy ra
+nguyên tử từ góc nhìn của chúng ta. Chúng ta không thể viết điều này
+trong user space mà không bị racy.
 
-Let's look at the example [flx[`pselect.c`|pselect.c]], which is just
-the same as the `poll()` example, above, except that it uses
-`pselect()`. Here's the handler.
+Hãy xem ví dụ [flx[`pselect.c`|pselect.c]], giống như ví dụ `poll()` ở
+trên, ngoại trừ nó dùng `pselect()`. Đây là handler.
 
 ``` {.c}
 volatile sig_atomic_t sigusr1_happened;
@@ -365,9 +360,9 @@ void handler(int sig)
 }
 ```
 
-Again, short and sweet. We just set a global atomic flag indicating the
-signal happened. Let's look in the main chunk of code (again, edited for
-brevity):
+Một lần nữa, ngắn gọn. Chúng ta chỉ đặt một cờ atomic global cho biết
+signal đã xảy ra. Hãy xem phần code chính (một lần nữa, đã chỉnh sửa
+cho ngắn gọn):
 
 ``` {.c}
 sigset_t mask, oldmask;
@@ -401,42 +396,44 @@ if (st == -1 && errno == EINTR) {
 }
 ```
 
-A few things to unpack, here.
+Một vài điều cần giải thích ở đây.
 
-* We make a new `mask` with `SIGUSR1` in it and we block that signal.
-* We keep the old mask (which in this case is an empty set), and we'll
-  use that as the set to block with `pselect()`.
-* We add file descriptor `0` (`stdin`) to our `readfds` so that
-  `pselect()` will return if we type something.
-* We call `pselect()`.
-* If it returns `-1` and `errno` is `EINTR`, it means `pselect()` was
-  interrupted by a signal! We then test our global to see if it was our
-  signal.
-* If it returns positive (`0` would mean timeout), it must be one of our
-  file descriptors. We test if it's file descriptor `0` (`stdin`), and,
-  if it is, we read data with `fgets()`.
+* Chúng ta tạo một `mask` mới với `SIGUSR1` trong đó và chặn signal đó.
+* Chúng ta giữ mask cũ (trong trường hợp này là tập hợp rỗng), và chúng
+  ta sẽ dùng nó làm tập hợp để chặn với `pselect()`.
+* Chúng ta thêm file descriptor `0` (`stdin`) vào `readfds` để
+  `pselect()` sẽ trả về nếu chúng ta gõ gì đó.
+* Chúng ta gọi `pselect()`.
+* Nếu nó trả về `-1` và `errno` là `EINTR`, nghĩa là `pselect()` bị
+  ngắt bởi một signal! Chúng ta sau đó kiểm tra global của mình để xem
+  có phải là signal của chúng ta không.
+* Nếu nó trả về dương (`0` nghĩa là hết thời gian), phải là một trong
+  các file descriptor của chúng ta. Chúng ta kiểm tra xem có phải file
+  descriptor `0` (`stdin`) không, và nếu vậy, chúng ta đọc dữ liệu với
+  `fgets()`.
 
-So, again, we have the signal handling stuff out in the main loop where
-it's under our control and we don't have to deal with nasty concurrency
-issues.
+Vì vậy, một lần nữa, chúng ta có phần xử lý signal ở vòng lặp chính nơi
+nó nằm trong tầm kiểm soát của chúng ta và chúng ta không phải đối phó
+với các vấn đề đồng thời khó chịu.
 
-That `oldmask` stuff is pretty weird. By doing it this way, we're
-basically telling `pselect()` that we only want to be notified with
-`SIGUSR1` arrives and not some other signal. We block everything that
-was already blocked before we added `SIGUSR1` to the set. (Which, in
-this case, was no other signal, so `oldmask` is an empty set.)
+Phần `oldmask` đó khá kỳ lạ. Bằng cách làm như vậy, về cơ bản chúng ta
+đang nói với `pselect()` rằng chúng ta chỉ muốn được thông báo khi
+`SIGUSR1` đến và không phải signal nào khác. Chúng ta chặn tất cả những
+gì đã bị chặn trước khi chúng ta thêm `SIGUSR1` vào tập hợp. (Trong
+trường hợp này, không có signal nào khác, vì vậy `oldmask` là tập hợp
+rỗng.)
 
-## Conclusion
+## Kết luận
 
-So there you have it. Some of the zany techniques we have for actually
-dealing properly with POSIX signals. Big takeaways are that you can
-handle all kinds of signals and you can block their delivery. Also you
-should only modify globals in the signal handler if they're atomic. And
-if the globals are written to anywhere at all while the handler is
-armed, they should also be atomic.
+Vậy là đó. Một số kỹ thuật lạ lùng mà chúng ta có để thực sự xử lý đúng
+các POSIX signal. Những điểm chính là bạn có thể xử lý tất cả các loại
+signal và bạn có thể chặn việc gửi chúng. Ngoài ra bạn chỉ nên sửa đổi
+các biến global trong signal handler nếu chúng là atomic. Và nếu các
+biến global được ghi vào ở bất kỳ đâu trong khi handler đang hoạt động,
+chúng cũng nên là atomic.
 
-And that if you want to handle signals properly, it really should be
-taken care of in the main loop unless you're just ignoring them. And you
-can use pipes or `pselect()` to help with this.
+Và nếu bạn muốn xử lý signal đúng cách, thực sự nên xử lý ở vòng lặp
+chính trừ khi bạn chỉ bỏ qua chúng. Và bạn có thể dùng pipe hoặc
+`pselect()` để hỗ trợ điều này.
 
-Code safe, and watch for dragons!
+Lập trình an toàn, và chú ý những con rồng!
