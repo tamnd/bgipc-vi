@@ -1,9 +1,10 @@
 name: Build and deploy to GitHub Pages
 
-# PAUSED during the translation marathon: only manual runs. Once all 14
-# chapters in src_vi/ are translated, restore the `push` and
-# `pull_request` triggers.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
