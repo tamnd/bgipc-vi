@@ -7,44 +7,43 @@
 <!-- Unix Sockets -->
 <!-- ======================================================= -->
 
-# Unix Sockets {#unixsock}
+# Unix Socket {#unixsock}
 
-Remember [FIFOs](#fifos)? Remember how they can only send data in one
-direction, just like [Pipes](#pipes)? Wouldn't it be grand if you could
-send data in both directions like you can with a socket?
+Bạn còn nhớ [FIFO](#fifos) không? Bạn còn nhớ cách chúng chỉ có thể
+gửi dữ liệu theo một chiều, giống như [Pipe](#pipes) không? Sẽ tuyệt
+không nếu bạn có thể gửi dữ liệu theo cả hai chiều như với socket?
 
-Well, hope no longer, because the answer is here: Unix Domain Sockets!
-In case you're still wondering what a socket is, well, it's a two-way
-communications pipe, which can be used to communicate in a wide variety
-of _domains_. One of the most common domains sockets communicate over is
-the Internet, but we won't discuss that here. We will, however, be
-talking about sockets in the Unix domain; that is, sockets that can be
-used between processes on the same Unix system.
+Vâng, đừng lo nữa, vì đây là câu trả lời: Unix Domain Socket! Trong
+trường hợp bạn vẫn đang tự hỏi socket là gì, vâng, đó là một đường ống
+giao tiếp hai chiều, có thể được dùng để giao tiếp qua nhiều _domain_
+khác nhau. Một trong những domain phổ biến nhất mà socket giao tiếp là
+Internet, nhưng ta sẽ không bàn đến điều đó ở đây. Tuy nhiên, ta sẽ nói
+về socket trong domain Unix; tức là, các socket có thể được dùng giữa
+các tiến trình trên cùng một hệ thống Unix.
 
-Unix sockets use many of the same function calls that Internet sockets
-do, and I won't be describing all of the calls I use in detail within
-this document. If the description of a certain call is too vague (or if
-you just want to learn more about Internet sockets anyway), I
-arbitrarily suggest [flbg[Beej's Guide to Network Programming using
-Internet Sockets|bgnet]]. I know the author personally.
+Unix socket dùng nhiều lệnh gọi hàm giống như Internet socket, và tôi
+sẽ không mô tả chi tiết tất cả các lệnh gọi tôi dùng trong tài liệu
+này. Nếu mô tả về một lệnh gọi cụ thể quá mơ hồ (hoặc nếu bạn chỉ muốn
+tìm hiểu thêm về Internet socket dù sao), tôi tùy tiện đề xuất
+[flbg[Hướng Dẫn Lập Trình Mạng của Beej sử dụng
+Internet Socket|bgnet]]. Tôi biết tác giả đó rất rõ.
 
-## Overview
+## Tổng Quan
 
-Like I said before, Unix sockets are just like two-way FIFOs. However,
-all data communication will be taking place through the sockets
-interface, instead of through the file interface. Although Unix sockets
-are a special file in the file system (just like FIFOs), you won't be
-using `open()` and `read()`---you'll be using `socket()`, `bind()`,
-`recv()`, etc.
+Như tôi đã nói trước đó, Unix socket giống như FIFO hai chiều. Tuy nhiên,
+tất cả giao tiếp dữ liệu sẽ diễn ra qua giao diện socket, thay vì qua
+giao diện file. Mặc dù Unix socket là một file đặc biệt trong hệ thống
+file (giống như FIFO), bạn sẽ không dùng `open()` và `read()`---bạn sẽ
+dùng `socket()`, `bind()`, `recv()`, v.v.
 
-When programming with sockets, you'll usually create server and client
-programs. The server will sit listening for incoming connections from
-clients and handle them. This is very similar to the situation that
-exists with Internet sockets, but with some fine differences.
+Khi lập trình với socket, bạn thường tạo các chương trình server và
+client. Server sẽ ngồi lắng nghe các kết nối đến từ client và xử lý
+chúng. Điều này rất giống với tình huống tồn tại với Internet socket,
+nhưng có một số khác biệt tinh tế.
 
-For instance, when describing which Unix socket you want to use (that
-is, the path to the special file that is the socket), you use a `struct
-sockaddr_un`, which has the following fields:
+Ví dụ, khi mô tả Unix socket nào bạn muốn dùng (tức là đường dẫn đến
+file đặc biệt là socket), bạn dùng `struct sockaddr_un`, có các trường
+sau:
 
 ```
 struct sockaddr_un {
@@ -53,21 +52,21 @@ struct sockaddr_un {
 }
 ```
 
-This is the structure you will be passing to the `bind()` function,
-which associates a socket descriptor (a file descriptor) with a certain
-file (the name for which is in the `sun_path` field).
+Đây là cấu trúc bạn sẽ truyền vào hàm `bind()`, hàm liên kết một socket
+descriptor (một file descriptor) với một file nhất định (tên của file đó
+nằm trong trường `sun_path`).
 
-## What to do to be a Server
+## Các Bước Để Là Server
 
-Without going into too much detail, I'll outline the steps a server
-program usually has to go through to do it's thing. While I'm at it,
-I'll be trying to implement an "echo server" which just echos back
-everything it gets on the socket.
+Không đi vào quá nhiều chi tiết, tôi sẽ phác thảo các bước một chương
+trình server thường phải thực hiện. Trong khi đó, tôi sẽ cố triển khai
+một "echo server" chỉ đơn giản là echo lại mọi thứ nó nhận được trên
+socket.
 
-Here are the server steps:
+Đây là các bước của server:
 
-1. **Call `socket()`:**  A call to `socket()` with the proper arguments
-   creates the Unix socket:
+1. **Gọi `socket()`:** Một lệnh gọi `socket()` với các đối số đúng sẽ
+   tạo Unix socket:
 
    ``` {.c}
    unsigned int s, s2;
@@ -82,22 +81,22 @@ Here are the server steps:
    s = socket(_AF_UNIX_, SOCK_STREAM, 0);
    ```
 
-   The second argument, `SOCK_STREAM`, tells `socket()` to create a
-   stream socket. Yes, datagram sockets (`SOCK_DGRAM`) are supported in
-   the Unix domain, but I'm only going to cover stream sockets here. For
-   the curious, see [flbg[Beej's Guide to Network Programming|bgnet]]
-   for a good description of unconnected datagram sockets that applies
-   perfectly well to Unix sockets. The only thing that changes is that
-   you're now using a `struct sockaddr_un` instead of a `struct
-   sockaddr_in`.
+   Đối số thứ hai, `SOCK_STREAM`, cho `socket()` biết tạo một stream
+   socket. Vâng, datagram socket (`SOCK_DGRAM`) được hỗ trợ trong domain
+   Unix, nhưng tôi chỉ đề cập đến stream socket ở đây. Những ai tò mò,
+   hãy xem [flbg[Hướng Dẫn Lập Trình Mạng của Beej|bgnet]] để có mô tả
+   tốt về unconnected datagram socket áp dụng hoàn hảo cho Unix socket.
+   Điều duy nhất thay đổi là bạn đang dùng `struct sockaddr_un` thay vì
+   `struct sockaddr_in`.
 
-   One more note: all these calls return `-1` on error and set the
-   global variable `errno` to reflect whatever went wrong. Be sure to do
-   your error checking.
+   Thêm một lưu ý: tất cả các lệnh gọi này trả về `-1` khi lỗi và đặt
+   biến toàn cục `errno` để phản ánh những gì đã xảy ra. Hãy đảm bảo
+   kiểm tra lỗi.
 
-2. **Call `bind()`:**  You got a socket descriptor from the call to
-   `socket()`, now you want to bind that to an address in the Unix
-   domain. (That address, as I said before, is a special file on disk.)
+2. **Gọi `bind()`:** Bạn đã lấy được socket descriptor từ lệnh gọi
+   `socket()`, bây giờ bạn muốn bind nó vào một địa chỉ trong domain
+   Unix. (Địa chỉ đó, như tôi đã nói trước đây, là một file đặc biệt
+   trên đĩa.)
 
    ``` {.c}
    strcpy(local.sun_path, "/home/beej/mysocket");
@@ -107,44 +106,40 @@ Here are the server steps:
    bind(s, (struct sockaddr *)&local, len);
    ```
 
-   This associates the socket descriptor "`s`" with the Unix socket
-   address "`/home/beej/mysocket`". Notice that we called `unlink()`
-   before `bind()` to remove the socket if it already exists. You will
-   get an `EINVAL` error if the file is already there.
+   Lệnh này liên kết socket descriptor "`s`" với địa chỉ Unix socket
+   "`/home/beej/mysocket`". Lưu ý rằng ta đã gọi `unlink()` trước
+   `bind()` để xóa socket nếu nó đã tồn tại. Bạn sẽ nhận lỗi `EINVAL`
+   nếu file đó đã có ở đó.
 
-3. **Call `listen()`:**  This instructs the socket to listen for
-   incoming connections from client programs:
+3. **Gọi `listen()`:** Lệnh này hướng dẫn socket lắng nghe các kết nối
+   đến từ các chương trình client:
 
    ```
    listen(s, 5);
    ```
 
-   The second argument, `5`, is the number of incoming connections that
-   can be queued before you call `accept()`, below. If there are this
-   many connections waiting to be accepted, additional clients will
-   generate the error `ECONNREFUSED`.
+   Đối số thứ hai, `5`, là số kết nối đến có thể được xếp hàng đợi trước
+   khi bạn gọi `accept()` bên dưới. Nếu có nhiều kết nối đang chờ được
+   chấp nhận như vậy, các client thêm sẽ tạo ra lỗi `ECONNREFUSED`.
 
-4. **Call `accept()`:**  This will accept a connection from a client.
-   This function returns _another socket descriptor_! The old descriptor
-   is still listening for new connections, but this new one is connected
-   to the client:
+4. **Gọi `accept()`:** Lệnh này sẽ chấp nhận một kết nối từ client. Hàm
+   này trả về _một socket descriptor khác_! Descriptor cũ vẫn đang lắng
+   nghe các kết nối mới, nhưng cái mới này được kết nối với client:
 
    ``` {.c}
    len = sizeof(remote);
    s2 = accept(s, &remote, &len);
    ```
 
-   When `accept()` returns, the `remote` variable will be filled with
-   the remote side's `struct sockaddr_un`, and `len` will be set to its
-   length. The descriptor `s2` is connected to the client, and is ready
-   for `send()` and `recv()`, as described in the [flbg[Network
-   Programming Guide|bgnet]].
+   Khi `accept()` trả về, biến `remote` sẽ được điền với `struct
+   sockaddr_un` phía bên kia, và `len` sẽ được đặt thành độ dài của nó.
+   Descriptor `s2` được kết nối với client, và sẵn sàng cho `send()` và
+   `recv()`, như được mô tả trong [flbg[Hướng Dẫn Lập Trình Mạng|bgnet]].
 
 
-5. **Handle the connection and loop back to `accept()`:** Usually you'll
-   want to communicate to the client here (we'll just echo back
-   everything it sends us), close the connection, then `accept()` a new
-   one.
+5. **Xử lý kết nối và quay lại `accept()`:** Thường bạn sẽ muốn giao tiếp
+   với client ở đây (ta chỉ echo lại mọi thứ nó gửi cho ta), đóng kết
+   nối, rồi `accept()` một cái mới.
 
    ``` {.c}
    while (len = recv(s2, &buf, 100, 0), len > 0)
@@ -153,12 +148,12 @@ Here are the server steps:
    /* loop back to accept() from here */
    ```
 
-6. **Close the connection:** You can close the connection either by
-   calling `close()`, or by calling [flm[`shutdown`|shutdown.2]].
+6. **Đóng kết nối:** Bạn có thể đóng kết nối bằng cách gọi `close()`,
+   hoặc bằng cách gọi [flm[`shutdown`|shutdown.2]].
 
-With all that said, here is some source for an echoing server,
-[flx[`echos.c`|echos.c]]. All it does is wait for a connection on a Unix
-socket (named, in this case, "echo_socket").
+Sau tất cả những điều đó, đây là một số code cho echo server,
+[flx[`echos.c`|echos.c]]. Tất cả những gì nó làm là chờ kết nối trên
+một Unix socket (có tên, trong trường hợp này, là "echo_socket").
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -232,26 +227,26 @@ int main(void)
 }
 ```
 
-As you can see, all the aforementioned steps are included in this
-program: call `socket()`, call `bind()`, call `listen()`, call
-`accept()`, and do some network `send()`s and `recv()`s.
+Như bạn có thể thấy, tất cả các bước đã đề cập ở trên đều có trong
+chương trình này: gọi `socket()`, gọi `bind()`, gọi `listen()`, gọi
+`accept()`, và thực hiện một số `send()` và `recv()` trên mạng.
 
-## What to do to be a client
+## Các Bước Để Là Client
 
-There needs to be a program to talk to the above server, right? Except
-with the client, it's a lot easier because you don't have to do any
-pesky `listen()`ing or `accept()`ing. Here are the steps:
+Cần có một chương trình để nói chuyện với server ở trên, phải không?
+Ngoại trừ với client, nó dễ hơn nhiều vì bạn không phải làm những thứ
+`listen()` và `accept()` phiền phức. Đây là các bước:
 
-1. Call `socket()` to get a Unix domain socket to communicate through.
+1. Gọi `socket()` để lấy một Unix domain socket để giao tiếp qua.
 
-2. Set up a `struct sockaddr_un` with the remote address (where the
-   server is listening) and call `connect()` with that as an argument.
+2. Thiết lập một `struct sockaddr_un` với địa chỉ từ xa (nơi server đang
+   lắng nghe) và gọi `connect()` với nó như một đối số.
 
-3. Assuming no errors, you're connected to the remote side! Use `send()`
-   and `recv()` to your heart's content!
+3. Giả sử không có lỗi, bạn đã kết nối với phía bên kia! Dùng `send()`
+   và `recv()` tùy thích!
 
-How about code to talk to the echo server, above? No sweat, friends,
-here is [flx[`echoc.c`|echoc.c]]:
+Thế nào về code để nói chuyện với echo server ở trên? Không vấn đề gì,
+bạn bè ơi, đây là [flx[`echoc.c`|echoc.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -313,33 +308,32 @@ int main(void)
 }
 ```
 
-In the client code, of course you'll notice that there are only a few
-system calls used to set things up: `socket()` and `connect()`. Since
-the client isn't going to be `accept()`ing any incoming connections,
-there's no need for it to `listen()`. Of course, the client still uses
-`send()` and `recv()` for transferring data. That about sums it up.
+Trong code client, tất nhiên bạn sẽ nhận thấy chỉ có một vài syscall
+được dùng để thiết lập mọi thứ: `socket()` và `connect()`. Vì client sẽ
+không `accept()` bất kỳ kết nối đến nào, không cần phải `listen()`. Tất
+nhiên, client vẫn dùng `send()` và `recv()` để truyền dữ liệu. Đó là
+tóm tắt.
 
-## `socketpair()`---quick full-duplex pipes
+## `socketpair()`---Pipe Full-Duplex Nhanh
 
-What if you wanted a [`pipe()`](#pipes), but you wanted to use a single
-pipe to send and recieve data from _both sides_? Since pipes are
-unidirectional (with exceptions in SYSV), you can't do it! There is a
-solution, though: use a Unix domain socket, since they can handle
-bi-directional data.
+Nếu bạn muốn một [`pipe()`](#pipes), nhưng muốn dùng một pipe duy nhất
+để gửi và nhận dữ liệu từ _cả hai phía_? Vì pipe là một chiều (với
+ngoại lệ trong SYSV), bạn không thể làm được! Tuy nhiên có một giải
+pháp: dùng Unix domain socket, vì chúng có thể xử lý dữ liệu hai chiều.
 
-What a pain, though! Setting up all that code with `listen()` and
-`connect()` and all that just to pass data both ways! But guess what!
-You don't have to!
+Thật phiền phức! Thiết lập tất cả code đó với `listen()` và `connect()`
+và những thứ như vậy chỉ để truyền dữ liệu theo cả hai chiều! Nhưng đoán
+xem không! Bạn không cần phải làm vậy!
 
-That's right, there's a beauty of a system call known as `socketpair()`
-this is nice enough to return to you a pair of _already connected
-sockets_! No extra work is needed on your part; you can immediately use
-these socket descriptors for interprocess communication.
+Đúng vậy, có một syscall tuyệt vời được gọi là `socketpair()`, đủ tốt
+bụng để trả về cho bạn một cặp _socket đã được kết nối sẵn_! Không cần
+thêm công việc nào từ phía bạn; bạn có thể ngay lập tức dùng các socket
+descriptor này để giao tiếp liên tiến trình.
 
-For instance, lets set up two processes. The first sends a `char` to the
-second, and the second changes the character to uppercase and returns
-it. Here is some simple code to do just that, called
-[flx[`spair.c`|spair.c]] (with no error checking for clarity):
+Ví dụ, hãy thiết lập hai tiến trình. Cái đầu tiên gửi một `char` đến
+cái thứ hai, và cái thứ hai chuyển ký tự thành chữ hoa và trả về. Đây
+là một số code đơn giản để làm chính xác điều đó, được gọi là
+[flx[`spair.c`|spair.c]] (không có kiểm tra lỗi để rõ ràng hơn):
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -379,20 +373,19 @@ int main(void)
 }
 ```
 
-Sure, it's an expensive way to change a character to uppercase, but it's
-the fact that you have simple communication going on here that really
-matters.
+Đúng là đây là một cách tốn kém để chuyển ký tự sang chữ hoa, nhưng
+điều thực sự quan trọng là bạn có giao tiếp đơn giản đang diễn ra ở đây.
 
-One more thing to notice is that `socketpair()` takes both a domain
-(`AF_UNIX`) and socket type (`SOCK_STREAM`). These can be any legal
-values at all, depending on which routines in the kernel you want to
-handle your code, and whether you want stream or datagram sockets. I
-chose `AF_UNIX` sockets because this is a Unix sockets document and
-they're a bit faster than `AF_INET` sockets, I hear.
+Một điều nữa cần lưu ý là `socketpair()` nhận cả domain (`AF_UNIX`) và
+kiểu socket (`SOCK_STREAM`). Những thứ này có thể là bất kỳ giá trị hợp
+lệ nào, tùy thuộc vào các thủ tục trong kernel mà bạn muốn xử lý code
+của mình, và liệu bạn muốn stream hay datagram socket. Tôi chọn socket
+`AF_UNIX` vì đây là tài liệu Unix socket và chúng nhanh hơn socket
+`AF_INET` một chút, theo tôi nghe.
 
-Finally, you might be curious as to why I'm using `write()` and `read()`
-instead of `send()` and `recv()`. Well, in short, I was being lazy. See,
-by using these system calls, I don't have to enter the `flags` argument
-that `send()` and `recv()` use, and I always set it to zero anyway. Of
-course, socket descriptors are just file descriptors like any other, so
-they respond just fine to many file manipulation system calls.
+Cuối cùng, bạn có thể tò mò tại sao tôi dùng `write()` và `read()` thay
+vì `send()` và `recv()`. Vâng, tóm lại, tôi đang lười biếng. Bạn thấy,
+bằng cách dùng các syscall này, tôi không phải nhập đối số `flags` mà
+`send()` và `recv()` dùng, và tôi luôn đặt nó thành không dù sao. Tất
+nhiên, socket descriptor chỉ là file descriptor như bất kỳ cái nào khác,
+vì vậy chúng phản hồi tốt với nhiều syscall thao tác file.
