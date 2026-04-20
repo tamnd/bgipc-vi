@@ -7,93 +7,89 @@
 <!-- Message Queues -->
 <!-- ======================================================= -->
 
-# System V Message Queues {#svmq}
+# Hàng Đợi Tin Nhắn System V {#svmq}
 
-Those people who brought us System V have seen fit to include some IPC
-goodies that have been implemented on various platforms (including
-Linux, of course.)  This document describes the usage and functionality
-of the extremely groovy System V Message Queues!
+Những người mang lại cho chúng ta System V đã bao gồm một số tính năng
+IPC tuyệt vời đã được triển khai trên nhiều nền tảng (bao gồm Linux,
+tất nhiên.) Tài liệu này mô tả cách sử dụng và chức năng của Hàng Đợi
+Tin Nhắn System V cực kỳ ấn tượng!
 
-Now, before we begin, this information is now a bit *dated*. Well,
-actually, the information is good, but there is a newer [POSIX message
-queue API, as described in an earlier chapter of this guide](#mq), that
-is better suited for modern life. But maybe you're on an older machine
-or are just out for a nostalgic time. If so, read on!
+Bây giờ, trước khi bắt đầu, thông tin này đã khá *cũ*. Ừ thì, thực ra
+thông tin vẫn còn tốt, nhưng có một [API hàng đợi tin nhắn POSIX mới
+hơn, như mô tả trong chương trước của hướng dẫn này](#mq), phù hợp hơn
+cho cuộc sống hiện đại. Nhưng có thể bạn đang dùng máy cũ hơn hoặc chỉ
+muốn trải nghiệm hoài cổ. Nếu vậy, hãy đọc tiếp!
 
-As usual, I want to spew some overview at you before getting into the
-nitty-gritty. A message queue works kind of like a [FIFO](#fifos), but
-supports some additional functionality. Generally, see, messages are
-taken off the queue in the order they are put on. Specifically, however,
-there are ways to pull certain messages out of the queue before they
-reach the front. It's like cutting in line. (Incidentally, don't try to
-cut in line while visiting the Great America amusement park in Silicon
-Valley, as you can be arrested for it.  They take cutting _very_
-seriously down there.)
+Như thường lệ, tôi muốn trình bày tổng quan trước khi đi vào chi tiết.
+Một hàng đợi tin nhắn hoạt động giống như [FIFO](#fifos), nhưng hỗ trợ
+thêm một số tính năng. Nhìn chung, các tin nhắn được lấy ra khỏi hàng
+đợi theo thứ tự chúng được đưa vào. Tuy nhiên, cụ thể hơn, có những
+cách để lấy một số tin nhắn nhất định ra khỏi hàng đợi trước khi chúng
+đến lượt. Giống như chen hàng vậy. (Nhân tiện, đừng cố chen hàng khi
+ghé thăm công viên giải trí Great America ở Silicon Valley, vì bạn có
+thể bị bắt vì điều đó. Họ coi việc chen hàng rất _nghiêm túc_ ở đó.)
 
-In terms of usage, a process can create a new message queue, or it can
-connect to an existing one. In this, the latter, way two processes can
-exchange information through the same message queue. Score.
+Về mặt sử dụng, một tiến trình có thể tạo một hàng đợi tin nhắn mới,
+hoặc kết nối vào một hàng đợi đã có. Theo cách thứ hai này, hai tiến
+trình có thể trao đổi thông tin qua cùng một hàng đợi tin nhắn. Tuyệt.
 
-One more thing about System V IPC: when you create a message queue, it
-doesn't go away until you destroy it, just like how files don't go away
-until you explicitly remove them. All the processes that have ever used
-it can quit, but the queue will still exist. A good practice is to use
-the `ipcs` command to check if any of your unused message queues are
-just floating around out there. You can destroy them with the `ipcrm`
-command, which is preferable to getting a visit from the sysadmin
-telling you that you've grabbed every available message queue on the
-system.
+Thêm một điều về System V IPC: khi bạn tạo một hàng đợi tin nhắn, nó
+không biến mất cho đến khi bạn xóa nó, giống như cách các file không
+biến mất cho đến khi bạn xóa chúng một cách rõ ràng. Tất cả các tiến
+trình từng sử dụng nó có thể thoát, nhưng hàng đợi vẫn tồn tại. Một
+thói quen tốt là dùng lệnh `ipcs` để kiểm tra xem có hàng đợi tin nhắn
+nào của bạn không dùng đang lơ lửng ở đó không. Bạn có thể xóa chúng
+bằng lệnh `ipcrm`, điều này tốt hơn là để sysadmin ghé thăm và nói
+rằng bạn đã chiếm hết mọi hàng đợi tin nhắn khả dụng trên hệ thống.
 
-## Where's my queue?
+## Hàng Đợi Của Tôi Ở Đâu?
 
-Let's get something going! First of all, you want to connect to a queue,
-or create it if it doesn't exist. The call to accomplish this is the
-`msgget()` system call:
+Hãy bắt đầu thôi! Trước tiên, bạn muốn kết nối vào một hàng đợi, hoặc
+tạo nó nếu chưa tồn tại. Lệnh gọi để thực hiện điều này là syscall
+`msgget()`:
 
 ``` {.c}
 int msgget(key_t key, int msgflg);
 ```
 
-`msgget()` returns the message queue ID on success, or `-1` on failure
-(and it sets `errno`, of course.)
+`msgget()` trả về ID hàng đợi tin nhắn khi thành công, hoặc `-1` khi
+thất bại (và nó đặt `errno`, tất nhiên.)
 
-The arguments are a little weird, but can be understood with a little
-brow-beating. The first, `key` is a system-wide unique identifier
-describing the queue you want to connect to (or create). Every other
-process that wants to connect to this queue will have to use the same
-`key`.
+Các đối số có vẻ hơi kỳ lạ, nhưng có thể hiểu được sau một chút vật lộn.
+Đầu tiên, `key` là một định danh duy nhất trên toàn hệ thống mô tả hàng
+đợi bạn muốn kết nối vào (hoặc tạo). Mọi tiến trình khác muốn kết nối
+vào hàng đợi này sẽ phải dùng cùng `key`.
 
-The other argument, `msgflg` tells `msgget()` what to do with queue in
-question. To create a queue, this field must be set equal to `IPC_CREAT`
-bit-wise OR'd with the permissions for this queue. (The queue
-permissions are the same as standard file permissions---queues take on
-the user-id and group-id of the program that created them.)
+Đối số kia, `msgflg` cho `msgget()` biết phải làm gì với hàng đợi đó.
+Để tạo một hàng đợi, trường này phải được đặt bằng `IPC_CREAT` OR theo
+bit với các quyền cho hàng đợi này. (Quyền hàng đợi giống như quyền
+file Unix tiêu chuẩn---hàng đợi nhận user-id và group-id của chương
+trình tạo ra chúng.)
 
-A sample call is given in the following section.
+Một lệnh gọi mẫu được đưa ra trong phần sau.
 
-## "Are you the Key Master?" {#svmqftok}
+## "Anh có phải người giữ Key không?" {#svmqftok}
 
-What about this `key` nonsense? How do we create one? Well, since the
-type `key_t` is actually just a `long`, you can use any number you want.
-But what if you hard-code the number and some other unrelated program
-hardcodes the same number but wants another queue? The solution is to
-use the `ftok()` function which generates a key from two arguments:
+Chuyện về `key` này là gì vậy? Làm thế nào để tạo một cái? Vâng, vì
+kiểu `key_t` thực ra chỉ là một `long`, bạn có thể dùng bất kỳ số nào
+bạn muốn. Nhưng nếu bạn hardcode số đó và một chương trình khác không
+liên quan cũng hardcode cùng số đó nhưng muốn một hàng đợi khác thì
+sao? Giải pháp là dùng hàm `ftok()` tạo ra một key từ hai đối số:
 
 ``` {.c}
 key_t ftok(const char *`path`, int `id`);
 ```
 
-Ok, this is getting weird. Basically, `path` just has to be a path to a
-file that uniquely identifies this application; the pathname to the
-application's configuration file is a common string to use (what are the
-odds that two applications will use the same configuration file?). The
-other argument, `id` is usually just set to some arbitrary char, like
-'A'. The `ftok()` function uses information about the named file (like
-inode number, etc.) and the `id` to generate a probably-unique `key` for
-`msgget()`. Programs that want to use the same queue must generate the
-same `key`, so they must pass the same parameters to `ftok()`.
+OK, điều này đang trở nên kỳ lạ. Về cơ bản, `path` chỉ cần là đường
+dẫn đến một file xác định duy nhất ứng dụng này; đường dẫn đến file cấu
+hình của ứng dụng là một chuỗi thường được dùng (khả năng nào hai ứng
+dụng sẽ dùng cùng file cấu hình?). Đối số kia, `id` thường chỉ được đặt
+thành một ký tự tùy ý, như 'A'. Hàm `ftok()` dùng thông tin về file đã
+đặt tên (như số inode, v.v.) và `id` để tạo ra một `key` có thể là duy
+nhất cho `msgget()`. Các chương trình muốn dùng cùng hàng đợi phải tạo
+ra cùng `key`, vì vậy chúng phải truyền cùng tham số vào `ftok()`.
 
-Finally, it's time to make the call:
+Cuối cùng, đến lúc thực hiện lệnh gọi:
 
 ``` {.c}
 #include <sys/msg.h>
@@ -102,17 +98,17 @@ key = ftok("/home/beej/somefile", 'b');
 msqid = msgget(key, 0666 | IPC_CREAT);
 ```
 
-In the above example, I set the permissions on the queue to `666` (or
-`rw-rw-rw-`, if that makes more sense to you). And now we have `msqid`
-which will be used to send and receive messages from the queue.
+Trong ví dụ trên, tôi đặt quyền trên hàng đợi thành `666` (hoặc
+`rw-rw-rw-`, nếu điều đó dễ hiểu hơn với bạn). Và bây giờ ta có `msqid`
+sẽ được dùng để gửi và nhận tin nhắn từ hàng đợi.
 
-## Sending to the queue
+## Gửi Vào Hàng Đợi
 
-Once you've connected to the message queue using `msgget()`, you are
-ready to send and receive messages. First, the sending:
+Sau khi bạn đã kết nối vào hàng đợi tin nhắn bằng `msgget()`, bạn đã
+sẵn sàng gửi và nhận tin nhắn. Đầu tiên, việc gửi:
 
-Each message is made up of two parts, which are defined in the template
-structure `struct msgbuf`, as defined in `sys/msg.h`:
+Mỗi tin nhắn gồm hai phần, được định nghĩa trong cấu trúc mẫu `struct
+msgbuf`, như định nghĩa trong `sys/msg.h`:
 
 ``` {.c}
 struct msgbuf {
@@ -121,14 +117,14 @@ struct msgbuf {
 };
 ```
 
-The field `mtype` is used later when retrieving messages from the queue,
-and can be set to any positive number. `mtext` is the data this will be
-added to the queue.
+Trường `mtype` được dùng sau này khi lấy tin nhắn từ hàng đợi, và có
+thể được đặt thành bất kỳ số dương nào. `mtext` là dữ liệu sẽ được thêm
+vào hàng đợi.
 
-"What?! You can only put one byte arrays onto a message queue?!
-Worthless!!"  Well, not exactly. You can use any structure you want to
-put messages on the queue, as long as the first element is a long. For
-instance, we could use this structure to store all kinds of goodies:
+"Cái gì?! Bạn chỉ có thể đưa mảng một byte lên hàng đợi tin nhắn thôi
+sao?! Vô dụng!!" Vâng, không hẳn vậy. Bạn có thể dùng bất kỳ cấu trúc
+nào bạn muốn để đưa tin nhắn vào hàng đợi, miễn là phần tử đầu tiên là
+một long. Ví dụ, ta có thể dùng cấu trúc này để lưu trữ đủ loại thứ:
 
 ``` {.c}
 struct pirate_msgbuf {
@@ -143,29 +139,29 @@ struct pirate_msgbuf {
 };
 ```
 
-Ok, so how do we pass this information to a message queue? The answer is
-simple, my friends: just use `msgsnd()`:
+OK, vậy làm thế nào ta truyền thông tin này vào một hàng đợi tin nhắn?
+Câu trả lời rất đơn giản, các bạn ơi: chỉ cần dùng `msgsnd()`:
 
 ``` {.c}
 int msgsnd(int msqid, const void *msgp,
            size_t msgsz, int msgflg);
 ```
 
-`msqid` is the message queue identifier returned by `msgget()`. The
-pointer `msgp` is a pointer to the data you want to put on the queue.
-`msgsz` is the size in bytes of the data to add to the queue (not
-counting the size of the `mtype` member). Finally, `msgflg` allows you
-to set some optional flag parameters, which we'll ignore for now by
-setting it to `0`.
+`msqid` là định danh hàng đợi tin nhắn được trả về bởi `msgget()`. Con
+trỏ `msgp` là con trỏ đến dữ liệu bạn muốn đưa vào hàng đợi. `msgsz`
+là kích thước tính bằng byte của dữ liệu cần thêm vào hàng đợi (không
+tính kích thước của phần tử `mtype`). Cuối cùng, `msgflg` cho phép bạn
+đặt một số tham số flag tùy chọn, mà ta sẽ bỏ qua bây giờ bằng cách đặt
+nó thành `0`.
 
-The best way to get the size of the data to send is by setting it up
-correctly to begin with. The first field of the `struct` should be a
-`long`, as we've seen. To be safe and portable, there should only be one
-additional field. If you need more than one, wrap it up in a `struct`
-like with `struct pirate_msgbuf`, above.
+Cách tốt nhất để lấy kích thước dữ liệu cần gửi là thiết lập đúng từ
+đầu. Trường đầu tiên của `struct` phải là một `long`, như ta đã thấy. Để
+an toàn và khả chuyển, chỉ nên có một trường bổ sung. Nếu bạn cần nhiều
+hơn một, hãy bọc chúng vào một `struct` giống như `struct pirate_msgbuf`
+ở trên.
 
-When to get the size of the data to send, just take the size of the
-second field:
+Khi cần lấy kích thước dữ liệu cần gửi, chỉ cần lấy kích thước của
+trường thứ hai:
 
 ``` {.c}
 struct cheese_msgbuf {
@@ -185,11 +181,11 @@ size = sizeof mbuf.name;
 size = sizeof ((struct cheese_msgbuf*)0)->name;
 ```
 
-Or, if you have a lot of different fields, put them in a `struct` and
-use the <operator>sizeof</operator> operator on that. It can be extra
-convenient to do this, because now the substructure can have a name to
-reference. Here is a code snippet that shows one of our pirate
-structures being added to the message queue:
+Hoặc, nếu bạn có nhiều trường khác nhau, hãy đưa chúng vào một `struct`
+và dùng toán tử <operator>sizeof</operator> trên đó. Điều này có thể
+rất tiện lợi, vì bây giờ cấu trúc con có thể có tên để tham chiếu. Đây
+là đoạn code thêm một trong các cấu trúc cướp biển của ta vào hàng đợi
+tin nhắn:
 
 ``` {.c}
 #include <sys/msg.h>
@@ -207,19 +203,20 @@ msqid = msgget(key, 0666 | IPC_CREAT);
 msgsnd(msqid, &pmb, sizeof(struct pirate_info), 0);
 ```
 
-Aside from remembering to error-check the return values from all these
-functions, this is all there is to it. Oh, yeah: note that I arbitrarily
-set the `mtype` field to `2` up there. That'll be important in the next
-section.
+Ngoài việc nhớ kiểm tra lỗi từ các giá trị trả về của tất cả các hàm
+này, đó là tất cả những gì cần làm. Ồ, vâng: lưu ý rằng tôi tùy ý đặt
+trường `mtype` thành `2` ở đó. Điều đó sẽ quan trọng trong phần tiếp
+theo.
 
-## Receiving from the queue
+## Nhận Từ Hàng Đợi
 
-Now that we have the dreaded pirate [Francis
+Bây giờ ta đã có tên cướp biển đáng sợ [Francis
 L'Olonais](https://beej.us/pirates/pirate_view.php?file=lolonais.jpg)
-stuck in our message queue, how do we get him out? As you can imagine,
-there is a counterpart to `msgsnd()`: it is `msgrcv()`. How imaginative.
+kẹt trong hàng đợi tin nhắn của ta, làm thế nào để lấy anh ta ra? Như
+bạn có thể tưởng tượng, có một hàm đối xứng với `msgsnd()`: đó là
+`msgrcv()`. Thật sáng tạo.
 
-A call to `msgrcv()` that would do it looks something like this:
+Một lệnh gọi `msgrcv()` để làm điều đó trông như thế này:
 
 ``` {.c}
 #include <sys/msg.h>
@@ -236,62 +233,61 @@ msqid = msgget(key, 0666 | IPC_CREAT);
 msgrcv(msqid, &pmb, sizeof(struct pirate_info), 2, 0);
 ```
 
-There is something new to note in the `msgrcv()` call: the `2`! What
-does it mean? Here's the synopsis of the call:
+Có một điều mới cần lưu ý trong lệnh gọi `msgrcv()`: số `2`! Nó có
+nghĩa là gì? Đây là tóm tắt của lệnh gọi:
 
 ``` {.c}
 int msgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg);
 ```
 
-The `2` we specified in the call is the requested `msgtyp`. Recall that
-we set the `mtype` arbitrarily to `2` in the `msgsnd()` section of this
-document, so that will be the one that is retrieved from the queue.
+Số `2` ta chỉ định trong lệnh gọi là `msgtyp` được yêu cầu. Nhớ lại
+rằng ta đã đặt `mtype` tùy ý thành `2` trong phần `msgsnd()` của tài
+liệu này, vì vậy đó sẽ là cái được lấy ra từ hàng đợi.
 
-Actually, the behavior of `msgrcv()` can be modified drastically by
-choosing a `msgtyp` that is positive, negative, or zero:
+Thực ra, hành vi của `msgrcv()` có thể thay đổi đáng kể bằng cách chọn
+`msgtyp` là dương, âm, hoặc bằng không:
 
-|`msgtyp`|Effect on `msgrcv()`|
+|`msgtyp`|Hiệu ứng trên `msgrcv()`|
 |:------:|-------------------------------------------------------------|
-|Zero|Retrieve the next message on the queue, regardless of its `mtype`.|
-|Positive|Get the next message with an `mtype` _equal to_ the specified `msgtyp`.|
-|Negative|Retrieve the first message on the queue whose `mtype` field is less than or equal to the absolute value of the `msgtyp` argument.|
+|Không|Lấy tin nhắn tiếp theo trong hàng đợi, bất kể `mtype` của nó.|
+|Dương|Lấy tin nhắn tiếp theo có `mtype` _bằng_ `msgtyp` đã chỉ định.|
+|Âm|Lấy tin nhắn đầu tiên trong hàng đợi có trường `mtype` nhỏ hơn hoặc bằng giá trị tuyệt đối của đối số `msgtyp`.|
 
-So, what will often be the case is that you'll simply want the next
-message on the queue, no matter what `mtype` it is. As such, you'd set
-the `msgtyp` parameter to `0`.
+Vì vậy, điều thường xảy ra là bạn chỉ muốn tin nhắn tiếp theo trong
+hàng đợi, bất kể `mtype` là gì. Như vậy, bạn sẽ đặt tham số `msgtyp`
+thành `0`.
 
-## Destroying a message queue
+## Xóa Một Hàng Đợi Tin Nhắn
 
-There comes a time when you have to destroy a message queue. Like I said
-before, they will stick around until you explicitly remove them; it is
-important that you do this so you don't waste system resources. Ok, so
-you've been using this message queue all day, and it's getting old.  You
-want to obliterate it. There are two ways:
+Đến lúc nào đó bạn sẽ phải xóa một hàng đợi tin nhắn. Như tôi đã nói
+trước đó, chúng sẽ tồn tại cho đến khi bạn xóa chúng một cách rõ ràng;
+điều quan trọng là bạn làm điều này để không lãng phí tài nguyên hệ
+thống. OK, vậy bạn đã dùng hàng đợi tin nhắn này cả ngày, và nó đã cũ
+rồi. Bạn muốn tiêu diệt nó. Có hai cách:
 
-1. Use the Unix command `ipcs` to get a list of defined message queues,
-   then use the command `ipcrm` to delete the queue.
+1. Dùng lệnh Unix `ipcs` để lấy danh sách các hàng đợi tin nhắn đã
+   định nghĩa, rồi dùng lệnh `ipcrm` để xóa hàng đợi.
 
-2. Write a program to do it for you.
+2. Viết một chương trình để làm điều đó cho bạn.
 
-Often, the latter choice is the most appropriate, since you might want
-your program to clean up the queue at some time or another. To do this
-requires the introduction of another function: `msgctl()`.
+Thường thì lựa chọn thứ hai là phù hợp nhất, vì bạn có thể muốn chương
+trình của mình dọn dẹp hàng đợi vào một lúc nào đó. Để làm điều này cần
+giới thiệu thêm một hàm: `msgctl()`.
 
-The synopsis of `msgctl()` is:
+Tóm tắt của `msgctl()` là:
 
 ``` {.c}
 int msgctl(int msqid, int cmd,
            struct msqid_ds *buf);
 ```
 
-Of course, `msqid` is the queue identifier obtained from `msgget()`.
-The important argument is `cmd` which tells `msgctl()` how to behave.
-It can be a variety of things, but we're only going to talk about
-`IPC_RMID`, which is used to remove the message queue. The `buf`
-argument can be set to `NULL` for the purposes of `IPC_RMID`.
+Tất nhiên, `msqid` là định danh hàng đợi lấy từ `msgget()`. Đối số quan
+trọng là `cmd` cho `msgctl()` biết cách hành xử. Nó có thể là nhiều thứ,
+nhưng ta chỉ nói về `IPC_RMID`, dùng để xóa hàng đợi tin nhắn. Đối số
+`buf` có thể được đặt thành `NULL` cho mục đích của `IPC_RMID`.
 
-Say that we have the queue we created above to hold the pirates. You can
-destroy that queue by issuing the following call:
+Giả sử ta có hàng đợi ta đã tạo ở trên để chứa các cướp biển. Bạn có
+thể xóa hàng đợi đó bằng cách gọi lệnh sau:
 
 ``` {.c}
 #include <sys/msg.h>
@@ -300,20 +296,20 @@ destroy that queue by issuing the following call:
 msgctl(msqid, IPC_RMID, NULL);
 ```
 
-And the message queue is no more. (Of course, error checking of these
-return values is always appropriate!)
+Và hàng đợi tin nhắn không còn nữa. (Tất nhiên, kiểm tra lỗi trên các
+giá trị trả về này luôn luôn phù hợp!)
 
 <!-- ======================================================= -->
 <!-- Message queues: Sample programs, anyone? -->
 <!-- ======================================================= -->
 
-## Sample programs, anyone?
+## Chương Trình Mẫu, Ai Muốn Xem Không?
 
-For the sake of completeness, I'll include a brace of programs that will
-communicate using message queues. The first, `kirk.c` adds messages to
-the message queue, and `spock.c` retrieves them.
+Để cho đầy đủ, tôi sẽ bao gồm một cặp chương trình sẽ giao tiếp bằng
+hàng đợi tin nhắn. Chương trình đầu tiên, `kirk.c` thêm tin nhắn vào
+hàng đợi tin nhắn, và `spock.c` lấy chúng ra.
 
-Here is the source for [flx[`kirk.c`|kirk.c]]:
+Đây là mã nguồn cho [flx[`kirk.c`|kirk.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -368,11 +364,11 @@ int main(void)
 }
 ```
 
-The way `kirk` works is that it allows you to enter lines of text. Each
-line is bundled into a message and added to the message queue. The
-message queue is then read by `spock`.
+Cách `kirk` hoạt động là nó cho phép bạn nhập các dòng văn bản. Mỗi
+dòng được gói vào một tin nhắn và thêm vào hàng đợi tin nhắn. Hàng đợi
+tin nhắn sau đó được đọc bởi `spock`.
 
-Here is the source for [flx[`spock.c`|spock.c]]:
+Đây là mã nguồn cho [flx[`spock.c`|spock.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -417,22 +413,22 @@ int main(void)
 }
 ```
 
-Notice that `spock`, in the call to `msgget()`, doesn't include the
-`IPC_CREAT` option. We've left it up to `kirk` to create the message
-queue, and `spock` will return an error if he hasn't done so.
+Lưu ý rằng `spock`, trong lệnh gọi `msgget()`, không bao gồm tùy chọn
+`IPC_CREAT`. Ta để `kirk` tạo hàng đợi tin nhắn, và `spock` sẽ trả về
+lỗi nếu anh ta chưa làm vậy.
 
-Notice what happens when you're running both in separate windows and you
-kill one or the other. Also try running two copies of `kirk` or two
-copies of `spock` to get an idea of what happens when you have two
-readers or two writers. Another interesting demonstration is to run
-`kirk`, enter a bunch of messages, then run `spock` and see it retrieve
-all the messages in one swoop. Just messing around with these toy
-programs will help you gain an understanding of what is really going on.
+Hãy chú ý điều gì xảy ra khi bạn đang chạy cả hai trong các cửa sổ
+riêng biệt và bạn kill một trong hai. Cũng thử chạy hai bản sao của
+`kirk` hoặc hai bản sao của `spock` để có ý tưởng về điều gì xảy ra khi
+bạn có hai reader hoặc hai writer. Một bài trình diễn thú vị khác là
+chạy `kirk`, nhập một loạt tin nhắn, rồi chạy `spock` và xem nó lấy tất
+cả tin nhắn trong một lần. Chỉ cần nghịch ngợm với những chương trình
+đồ chơi này sẽ giúp bạn hiểu những gì thực sự đang xảy ra.
 
-## Summary
+## Tóm Tắt
 
-There is more to message queues than this short tutorial can present.
-Be sure to look in the man pages to see what else you can do, especially
-in the area of `msgctl()`. Also, there are more options you can pass to
-other functions to control how `msgsnd()` and `msgrcv()` handle if the
-queue is full or empty, respectively.
+Hàng đợi tin nhắn còn nhiều điều hơn những gì bài hướng dẫn ngắn này
+có thể trình bày. Hãy chắc chắn xem trang man để biết bạn có thể làm gì
+thêm, đặc biệt trong lĩnh vực `msgctl()`. Ngoài ra, còn có các tùy chọn
+khác bạn có thể truyền vào các hàm khác để kiểm soát cách `msgsnd()` và
+`msgrcv()` xử lý khi hàng đợi đầy hoặc trống tương ứng.
