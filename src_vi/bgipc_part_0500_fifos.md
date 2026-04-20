@@ -9,68 +9,66 @@
 
 # FIFOs {#fifos}
 
-A FIFO ("First In, First Out", pronounced "Fy-Foh") is sometimes known
-as a _named pipe_. That is, it's like a [pipe](#pipes), except that it
-has a name! In this case, the name is that of a file that multiple
-processes can `open()` and read and write to.
+Một FIFO ("First In, First Out", đọc là "Fy-Foh") đôi khi còn được biết
+đến là _named pipe_ (pipe có tên). Tức là, nó giống như một [pipe](#pipes),
+ngoại trừ nó có tên! Trong trường hợp này, tên đó là tên của một file
+mà nhiều tiến trình có thể `open()` và đọc ghi vào.
 
-This latter aspect of FIFOs is designed to let them get around one of
-the shortcomings of normal pipes: you can't grab one end of a normal
-pipe that was created by an unrelated process. See, if I run two
-individual copies of a program, they can both call `pipe()` all they
-want and still not be able to speak to one another. (This is because you
-must `pipe()`, then `fork()` to get a child process that can communicate
-to the parent via the pipe.)  With FIFOs, though, each unrelated process
-can simply `open()` the pipe and transfer data through it.
+Khía cạnh sau này của FIFO được thiết kế để khắc phục một trong những
+nhược điểm của pipe thông thường: bạn không thể nắm lấy một đầu của
+pipe thông thường được tạo bởi một tiến trình không liên quan. Thấy đó,
+nếu tôi chạy hai bản sao riêng lẻ của một chương trình, chúng đều có
+thể gọi `pipe()` bao nhiêu tùy thích mà vẫn không thể nói chuyện với
+nhau. (Đây là vì bạn phải `pipe()`, rồi `fork()` để có một tiến trình
+con có thể giao tiếp với cha thông qua pipe.) Tuy nhiên, với FIFO, mỗi
+tiến trình không liên quan chỉ cần `open()` pipe và truyền dữ liệu qua
+đó.
 
-## A New FIFO is Born
+## Một FIFO Mới Ra Đời
 
-Since the FIFO is actually a file on disk, you have to do some
-fancy-schmancy stuff to create it. It's not that hard. You just have to
-call `mkfifo()` with the proper arguments. Here is a `mkfifo()` call
-that creates a FIFO:
+Vì FIFO thực sự là một file trên đĩa, bạn phải làm một số thứ cầu kỳ
+để tạo nó. Không khó lắm. Bạn chỉ cần gọi `mkfifo()` với các đối số
+thích hợp. Đây là một lệnh gọi `mkfifo()` tạo ra một FIFO:
 
 ``` {.c}
 mkfifo("myfifo", 0644);
 ```
 
-In the above example, the FIFO file will be called "`myfifo`". The
-second argument sets access permissions to that file
-(octal 644, or `rw-r--r--`) which can also be set by ORing together
-macros from `sys/stat.h`. This permission is just like the one you'd
-set using the `chmod` command.
+Trong ví dụ trên, file FIFO sẽ được gọi là "`myfifo`". Đối số thứ hai
+đặt quyền truy cập cho file đó (octal 644, hay `rw-r--r--`) cũng có thể
+được đặt bằng cách OR các macro từ `sys/stat.h`. Quyền này giống như
+quyền bạn sẽ đặt bằng lệnh `chmod`.
 
-(An aside: a FIFO can also be created from the command line using the
-Unix `mkfifo` command.)
+(Ghi chú thêm: một FIFO cũng có thể được tạo từ dòng lệnh bằng lệnh
+Unix `mkfifo`.)
 
-### A Historical Note: `mknod`
+### Ghi chú Lịch sử: `mknod`
 
-The original way to make a FIFO was with `mknod()`, but this is
-deprecated. For now, these two calls are equivalent:
+Cách gốc để tạo một FIFO là với `mknod()`, nhưng cách này đã bị loại bỏ.
+Hiện tại, hai lệnh gọi này là tương đương:
 
 ``` {.c}
 mknod("myfifo", S_IFIFO | 0644, 0);   // old way
 mkfifo("myfifo", 0644);               // new way
 ```
-In case of `mknod()` call, you used to have to do a little bit more
-work by specifying the creation mode in the second argument
-(extra OR S_IFIFO) and a device number as the last argument. This
-last argument is ignored when creating a FIFO, so you can put
-anything you want in there.
+Trong trường hợp lệnh gọi `mknod()`, trước đây bạn phải làm thêm một
+chút công việc bằng cách chỉ định chế độ tạo trong đối số thứ hai (OR
+thêm S_IFIFO) và số thiết bị như là đối số cuối. Đối số cuối này bị bỏ
+qua khi tạo FIFO, vì vậy bạn có thể đặt bất cứ thứ gì vào đó.
 
-But you should use `mkfifo()` to make FIFOs if your system supports it.
+Nhưng bạn nên dùng `mkfifo()` để tạo FIFO nếu hệ thống của bạn hỗ trợ.
 
-## Producers and Consumers
+## Người sản xuất và Người tiêu thụ
 
-Once the FIFO has been created, a process can start up and open it for
-reading or writing using the standard `open()` system call.
+Sau khi FIFO được tạo, một tiến trình có thể khởi động và mở nó để đọc
+hoặc ghi bằng cách dùng system call `open()` tiêu chuẩn.
 
-Since the process is easier to understand once you get some code in your
-belly, I'll present here two programs which will send data through a
-FIFO. One is `speak.c` which sends data through the FIFO, and the other
-is called `tick.c`, as it sucks data out of the FIFO.
+Vì tiến trình dễ hiểu hơn khi bạn có một ít code trong bụng, tôi sẽ
+trình bày ở đây hai chương trình sẽ gửi dữ liệu qua FIFO. Một là
+`speak.c` gửi dữ liệu qua FIFO, và cái kia được gọi là `tick.c`, vì nó
+hút dữ liệu ra khỏi FIFO.
 
-Here is [flx[`speak.c`|speak.c]]:
+Đây là [flx[`speak.c`|speak.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -106,11 +104,11 @@ int main(void)
 }
 ```
 
-What `speak` does is create the FIFO, then try to `open()` it. Now, what
-will happen is that the `open()` call will _block_ until some other
-process opens the other end of the pipe for reading. (There is a way
-around this---see [`O_NDELAY`](#fifondelay), below.) That process is
-[flx[`tick.c`|tick.c]], shown here:
+`speak` làm là tạo FIFO, sau đó cố `open()` nó. Bây giờ, điều sẽ xảy ra
+là lệnh gọi `open()` sẽ _block_ cho đến khi một tiến trình khác mở đầu
+kia của pipe để đọc. (Có cách khắc phục điều này---xem
+[`O_NDELAY`](#fifondelay), bên dưới.) Tiến trình đó là
+[flx[`tick.c`|tick.c]], hiển thị ở đây:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -148,104 +146,103 @@ int main(void)
 }
 ```
 
-Like `speak.c`, `tick` will block on the `open()` if there is no one
-writing to the FIFO. As soon as someone opens the FIFO for writing,
-`tick` will spring to life.
+Giống như `speak.c`, `tick` sẽ block trên `open()` nếu không có ai ghi
+vào FIFO. Ngay khi ai đó mở FIFO để ghi, `tick` sẽ bừng tỉnh.
 
-Try it! Start `speak` and it will block until you start `tick` in
-another window. (Conversely, if you start `tick`, it will block until
-you start `speak` in another window.)  Type away in the `speak` window
-and `tick` will suck it all up.
+Thử đi! Khởi động `speak` và nó sẽ block cho đến khi bạn khởi động
+`tick` trong một cửa sổ khác. (Ngược lại, nếu bạn khởi động `tick`,
+nó sẽ block cho đến khi bạn khởi động `speak` trong cửa sổ khác.) Gõ
+thoải mái trong cửa sổ `speak` và `tick` sẽ hút hết tất cả.
 
-Now, break out of `speak`. Notice what happens: the `read()` in `tick`
-returns 0, signifying EOF. In this way, the reader can tell when all
-writers have closed their connection to the FIFO. "What?" you ask "There
-can be multiple writers to the same pipe?"  Sure! That can be very
-useful, you know. Perhaps I'll show you later in the document how this
-can be exploited.
+Bây giờ, thoát ra khỏi `speak`. Chú ý điều gì xảy ra: `read()` trong
+`tick` trả về 0, báo hiệu EOF. Theo cách này, đầu đọc có thể biết khi
+nào tất cả người ghi đã đóng kết nối của họ đến FIFO. "Cái gì?" bạn hỏi
+"Có thể có nhiều người ghi vào cùng một pipe không?" Tất nhiên! Điều đó
+có thể rất hữu ích, bạn biết đó. Có lẽ tôi sẽ chỉ cho bạn sau trong tài
+liệu này cách điều này có thể được khai thác.
 
-But for now, lets finish this topic by seeing what happens when you
-break out of `tick` while `speak` is running. "Broken Pipe"! What does
-this mean? Well, what has happened is that when all readers for a FIFO
-close and the writer is still open, the writer will receiver the signal
-SIGPIPE the next time it tries to `write()`. The default signal handler
-for this signal prints "Broken Pipe" and exits. Of course, you can
-handle this more gracefully by catching SIGPIPE through the `signal()`
-call.
+Nhưng bây giờ, hãy kết thúc chủ đề này bằng cách xem điều gì xảy ra khi
+bạn thoát ra khỏi `tick` trong khi `speak` đang chạy. "Broken Pipe"!
+Điều đó nghĩa là gì? Thực ra, điều đã xảy ra là khi tất cả người đọc
+của một FIFO đóng và người ghi vẫn còn mở, người ghi sẽ nhận signal
+SIGPIPE vào lần tiếp theo nó cố `write()`. Default signal handler cho
+signal này in ra "Broken Pipe" và thoát. Tất nhiên, bạn có thể xử lý
+điều này lịch sự hơn bằng cách bắt SIGPIPE thông qua lệnh gọi `signal()`.
 
-Finally, what happens if you have multiple readers? Well, strange things
-happen. Sometimes one of the readers get everything. Sometimes it
-alternates between readers. Why do you want to have multiple readers,
-anyway?
+Cuối cùng, điều gì xảy ra nếu bạn có nhiều người đọc? Thực ra, những
+điều kỳ lạ xảy ra. Đôi khi một trong các người đọc nhận được tất cả mọi
+thứ. Đôi khi nó xen kẽ giữa các người đọc. Tại sao bạn muốn có nhiều
+người đọc vậy?
 
-## `O_NDELAY`! I'm UNSTOPPABLE! {#fifondelay}
+## `O_NDELAY`! Tôi KHÔNG THỂ BỊ DỪNG! {#fifondelay}
 
-Earlier, I mentioned that you could get around the blocking `open()`
-call if there was no corresponding reader or writer. The way to do this
-is to call `open()` with the `O_NDELAY` flag set in the mode argument:
+Trước đó, tôi đã đề cập rằng bạn có thể khắc phục lệnh gọi `open()`
+đang block nếu không có người đọc hoặc người ghi tương ứng. Cách để làm
+điều này là gọi `open()` với cờ `O_NDELAY` được đặt trong đối số chế độ:
 
 ``` {.c}
 fd = open(FIFO_NAME, O_WRONLY | O_NDELAY);
 ```
 
-This will cause `open()` to return `-1` if there are no processes that
-have the file open for reading.
+Điều này sẽ khiến `open()` trả về `-1` nếu không có tiến trình nào đang
+mở file để đọc.
 
-Likewise, you can open the reader process using the `O_NDELAY` flag, but
-this has a different effect: all attempts to `read()` from the pipe will
-simply return `0` bytes read if there is no data in the pipe. (That is,
-the `read()` will no longer block until there is some data in the pipe.)
-Note that you can no longer tell if `read()` is returning `0` because
-there is no data in the pipe, or because the writer has exited. This is
-the price of power, but my suggestion is to try to stick with blocking
-whenever possible.
+Tương tự, bạn có thể mở tiến trình đọc bằng cờ `O_NDELAY`, nhưng điều
+này có hiệu ứng khác: tất cả các lần cố `read()` từ pipe sẽ đơn giản
+trả về `0` byte đọc nếu không có dữ liệu trong pipe. (Tức là, `read()`
+sẽ không còn block cho đến khi có một số dữ liệu trong pipe.) Lưu ý rằng
+bạn không còn có thể biết liệu `read()` có trả về `0` vì không có dữ
+liệu trong pipe, hay vì người ghi đã thoát. Đây là cái giá của quyền
+lực, nhưng lời khuyên của tôi là hãy cố gắng gắn bó với blocking bất
+cứ khi nào có thể.
 
-## Interleaving Data
+## Xen kẽ Dữ liệu
 
-What happens if you have multiple writers dumping stuff in the pipe at
-the same time? Can it get interleaved?
+Điều gì xảy ra nếu bạn có nhiều người ghi đang đổ dữ liệu vào pipe cùng
+một lúc? Nó có thể bị xen kẽ không?
 
-Maybe! Depends on how much data you're pouring in in a single call to
-`write()`. As long as you don't exceed `PIPE_BUF` bytes in your
-`write()`, it will be atomic[^6a1b]. And that's good!
+Có thể! Tùy thuộc vào lượng dữ liệu bạn đổ vào trong một lần gọi
+`write()`. Miễn là bạn không vượt quá `PIPE_BUF` byte trong `write()`,
+nó sẽ là atomic[^6a1b]. Và điều đó tốt!
 
-[^6a1b]: POSIX says `PIPE_BUF` will be at least 512 bytes. So that's
-    your portable safe zone.
+[^6a1b]: POSIX nói `PIPE_BUF` sẽ ít nhất 512 byte. Vì vậy đó là vùng
+    an toàn di động của bạn.
 
-That said, there's nothing requiring that the corresponding `read()`
-calls get individual chunks of data out. We might have this happen:
+Điều đó nói rằng, không có gì bắt buộc rằng các lần gọi `read()` tương
+ứng lấy ra từng phần dữ liệu riêng lẻ. Chúng ta có thể có điều này xảy
+ra:
 
 ``` {.default}
 write "Foo" 
 write "bar" 
 ```
 
-And then a read gives us:
+Và rồi một lần đọc cho chúng ta:
 
 ``` {.default}
 read "Foobar" 
 ```
 
-Or maybe the read is short!
+Hoặc có thể lần đọc bị ngắt!
 
 ``` {.default}
 read "Foob" 
 read "ar" 
 ```
 
-So even if you have atomic writes, you're going to need some additional
-structure on the read end to make sure you're getting the right data out
-the other side. Sometime this is do by prepending the data with a
-length or having fixed-length messages.
+Vì vậy ngay cả khi bạn có các lần ghi atomic, bạn sẽ cần một số cấu
+trúc bổ sung ở đầu đọc để đảm bảo bạn đang lấy đúng dữ liệu ra phía
+kia. Đôi khi điều này được thực hiện bằng cách thêm tiền tố dữ liệu
+bằng độ dài hoặc có các tin nhắn có độ dài cố định.
 
-But in any case, you'll have to make sure you have a complete message or
-else you'll have to call `read()` again until you do.
+Nhưng trong mọi trường hợp, bạn sẽ phải đảm bảo rằng bạn có một tin
+nhắn hoàn chỉnh, hoặc bạn sẽ phải gọi `read()` lại cho đến khi có.
 
-## Concluding Notes
+## Ghi chú Kết thúc
 
-Having the name of the pipe right there on disk sure makes it easier,
-doesn't it? Unrelated processes can communicate via pipes! (This is an
-ability you will find yourself wishing for if you use normal pipes for
-too long.)  Still, though, the functionality of pipes might not be quite
-what you need for your applications. [Message queues](#svmq) might be more
-your speed, if your system supports them.
+Có tên của pipe ngay trên đĩa chắc chắn làm cho mọi thứ dễ dàng hơn
+phải không? Các tiến trình không liên quan có thể giao tiếp qua pipe!
+(Đây là khả năng mà bạn sẽ thấy mình ước gì nếu bạn dùng pipe thông
+thường quá lâu.) Dẫu vậy, chức năng của pipe có thể không hoàn toàn là
+những gì bạn cần cho các ứng dụng của mình. [Hàng đợi tin nhắn](#svmq)
+có thể phù hợp hơn với bạn, nếu hệ thống của bạn hỗ trợ chúng.
