@@ -7,55 +7,52 @@
 <!-- File Locking -->
 <!-- ======================================================= -->
 
-# File Locking {#flocking}
+# Khóa File {#flocking}
 
-File locking provides a very simple yet incredibly useful mechanism for
-coordinating file accesses. Before I begin to lay out the details, let
-me fill you in on some file locking secrets:
+Khóa file cung cấp một cơ chế rất đơn giản nhưng cực kỳ hữu ích để
+phối hợp các truy cập file. Trước khi tôi bắt đầu trình bày chi tiết,
+hãy để tôi tiết lộ cho bạn một số bí mật về khóa file:
 
-There are two types of locking mechanisms: mandatory and advisory.
-Mandatory systems will actually prevent `read()`s and `write()`s to
-file. Several Unix systems support them. Nevertheless, I'm going to
-ignore them throughout this document, preferring instead to talk solely
-about advisory locks. With an advisory lock system, processes can still
-read and write from a file while it's locked. Useless? Not quite, since
-there is a way for a process to check for the existence of a lock before
-a read or write. See, it's a kind of _cooperative_ locking system. This
-is easily sufficient for almost all cases where file locking is
-necessary.
+Có hai loại cơ chế khóa: bắt buộc (mandatory) và tư vấn (advisory).
+Các hệ thống bắt buộc sẽ thực sự ngăn các lệnh `read()` và `write()`
+vào file. Một số hệ thống Unix hỗ trợ chúng. Tuy nhiên, tôi sẽ bỏ qua
+chúng trong toàn bộ tài liệu này, thay vào đó chỉ nói về advisory lock.
+Với hệ thống advisory lock, các tiến trình vẫn có thể đọc và ghi từ
+một file trong khi nó bị khóa. Vô dụng không? Không hẳn, vì có cách
+để một tiến trình kiểm tra sự tồn tại của một khóa trước khi đọc hoặc
+ghi. Thấy đó, đây là một loại hệ thống khóa _hợp tác_. Điều này đủ dễ
+dàng cho hầu hết tất cả các trường hợp cần khóa file.
 
-Since that's out of the way, whenever I refer to a lock from now on in
-this document, I'm referring to advisory locks. So there.
+Vì điều đó đã được giải thích xong, bất cứ khi nào tôi đề cập đến khóa
+từ đây trở đi trong tài liệu này, tôi đề cập đến advisory lock. Vậy thôi.
 
-Now, let me break down the concept of a lock a little bit more. There
-are two types of (advisory!) locks: read locks and write locks (also
-referred to as shared locks and exclusive locks, respectively.) The way
-read locks work is that they don't interfere with other read locks. For
-instance, multiple processes can have a file locked for reading at the
-same. However, when a process has an write lock on a file, no other
-process can activate either a read or write lock until it is
-relinquished. One easy way to think of this is that there can be
-multiple readers simultaneously, but there can only be one writer at a
-time.
+Bây giờ, hãy để tôi phân tích khái niệm khóa thêm một chút. Có hai loại
+khóa (advisory!): read lock (khóa đọc) và write lock (khóa ghi) (còn
+được gọi là shared lock và exclusive lock tương ứng.) Cách read lock
+hoạt động là chúng không can thiệp vào các read lock khác. Ví dụ, nhiều
+tiến trình có thể khóa một file để đọc cùng một lúc. Tuy nhiên, khi một
+tiến trình có write lock trên một file, không có tiến trình nào khác có
+thể kích hoạt read lock hoặc write lock cho đến khi nó được giải phóng.
+Một cách dễ hiểu là có thể có nhiều người đọc đồng thời, nhưng chỉ có
+thể có một người ghi tại một thời điểm.
 
-One last thing before beginning: there are many ways to lock files in
-Unix systems. System V likes `lockf()`, which, personally, I think
-sucks. Better systems support `flock()` which offers better control over
-the lock, but still lacks in certain ways. For portability and for
-completeness, I'll be talking about how to lock files using `fcntl()`.
-I encourage you, though, to use one of the higher-level `flock()`-style
-functions if it suits your needs, but I want to portably demonstrate the
-full range of power you have at your fingertips. (If your System V Unix
-doesn't support the POSIX-y `fcntl()`, you'll have to reconcile the
-following information with your `lockf()` man page.)
+Một điều cuối cùng trước khi bắt đầu: có nhiều cách để khóa file trong
+các hệ thống Unix. System V thích `lockf()`, mà cá nhân tôi nghĩ là tệ.
+Các hệ thống tốt hơn hỗ trợ `flock()` cung cấp kiểm soát tốt hơn đối
+với khóa, nhưng vẫn còn thiếu một số cách. Để tính di động và đầy đủ,
+tôi sẽ nói về cách khóa file bằng `fcntl()`. Tuy nhiên tôi khuyến khích
+bạn sử dụng một trong các hàm kiểu `flock()` cấp cao hơn nếu phù hợp
+với nhu cầu của bạn, nhưng tôi muốn trình bày một cách di động về toàn
+bộ phạm vi quyền lực mà bạn có trong tầm tay. (Nếu hệ thống System V
+Unix của bạn không hỗ trợ `fcntl()` kiểu POSIX, bạn sẽ phải đối chiếu
+thông tin sau đây với trang man `lockf()` của mình.)
 
-## Setting a lock
+## Đặt khóa
 
-The `fcntl()` function does just about everything on the planet, but
-we'll just use it for file locking. Setting the lock consists of filling
-out a `struct flock` (declared in `fcntl.h`) that describes the type of
-lock needed, `open()`ing the file with the matching mode, and calling
-`fcntl()` with the proper arguments, _comme ça_:
+Hàm `fcntl()` làm hầu như mọi thứ trên hành tinh, nhưng chúng ta sẽ
+chỉ dùng nó để khóa file. Đặt khóa bao gồm điền vào một `struct flock`
+(khai báo trong `fcntl.h`) mô tả loại khóa cần thiết, `open()` file với
+chế độ phù hợp, và gọi `fcntl()` với các đối số thích hợp, _comme ça_:
 
 ``` {.c}
 struct flock fl = {
@@ -72,55 +69,55 @@ fd = open("filename", O_WRONLY);
 fcntl(fd, F_SETLKW, &fl);  /* F_GETLK, F_SETLK, F_SETLKW */
 ```
 
-What just happened? Let's start with the `struct flock` since the fields
-in it are used to _describe_ the locking action taking place.  Here are
-some field definitions:
+Điều gì vừa xảy ra? Hãy bắt đầu với `struct flock` vì các trường trong
+đó được dùng để _mô tả_ hành động khóa đang diễn ra. Đây là một số định
+nghĩa trường:
 
-|Field|Description|
+|Trường|Mô tả|
 |:------:|-------------------------------------------------------------|
-|`l_type`|This is where you signify the type of lock you want to set. It's either `F_RDLCK`, `F_WRLCK`, or `F_UNLCK` if you want to set a read lock, write lock, or clear the lock, respectively.|
-|`l_whence`|This field determines where the `l_start` field starts from (it's like an offset for the offset). It can be either `SEEK_SET`, `SEEK_CUR`, or `SEEK_END`, for beginning of file, current file position, or end of file.|
-|`l_start`|This is the starting offset in bytes of the lock, relative to `l_whence`.|
-|`l_len`|This is the length of the lock region in bytes (which starts from `l_start` which is relative to `l_whence`.|
-|`l_pid`|The process ID of the process holding the lock. This is set by the kernel when using the F_RDLCK command.|
+|`l_type`|Đây là nơi bạn chỉ định loại khóa bạn muốn đặt. Nó là `F_RDLCK`, `F_WRLCK`, hoặc `F_UNLCK` nếu bạn muốn đặt read lock, write lock, hoặc xóa khóa, tương ứng.|
+|`l_whence`|Trường này xác định điểm bắt đầu của trường `l_start` (giống như offset cho offset). Nó có thể là `SEEK_SET`, `SEEK_CUR`, hoặc `SEEK_END`, cho đầu file, vị trí file hiện tại, hoặc cuối file.|
+|`l_start`|Đây là offset bắt đầu tính theo byte của khóa, tương đối với `l_whence`.|
+|`l_len`|Đây là độ dài của vùng khóa tính theo byte (bắt đầu từ `l_start` tương đối với `l_whence`).|
+|`l_pid`|Process ID của tiến trình đang giữ khóa. Được kernel đặt khi dùng lệnh F_RDLCK.|
 
-In our example, we told it make a lock of type `F_WRLCK` (a write lock),
-starting relative to `SEEK_SET` (the beginning of the file), offset `0`,
-length `0` (a zero value means "lock to end-of-file), with the PID set
-to `getpid()`.
+Trong ví dụ của chúng ta, chúng ta nói với nó để tạo khóa loại `F_WRLCK`
+(write lock), bắt đầu tương đối với `SEEK_SET` (đầu file), offset `0`,
+độ dài `0` (giá trị zero có nghĩa là "khóa đến cuối file"), với PID được
+đặt thành `getpid()`.
 
-The next step is to `open()` the file, since `flock()` needs a file
-descriptor of the file that's being locked. Note that when you open the
-file, you need to open it in the same _mode_ as you have specified in
-the lock, as shown in the table, below. If you open the file in the
-wrong mode for a given lock type, `fcntl()` will return `-1` and `errno`
-will be set to `EBADF`.
+Bước tiếp theo là `open()` file, vì `flock()` cần một file descriptor
+của file đang bị khóa. Lưu ý rằng khi bạn mở file, bạn cần mở nó trong
+cùng _chế độ_ như bạn đã chỉ định trong khóa, như được hiển thị trong
+bảng bên dưới. Nếu bạn mở file trong chế độ sai cho một loại khóa nhất
+định, `fcntl()` sẽ trả về `-1` và `errno` sẽ được đặt thành `EBADF`.
 
-|`.l_type`|Mode|
+|`.l_type`|Chế độ|
 |:-:|-|
-|`F_RDLCK`|`O_RDONLY` or `O_RDWR`|
-|`F_WRLCK`|`O_WRONLY` or `O_RDWR`|
+|`F_RDLCK`|`O_RDONLY` hoặc `O_RDWR`|
+|`F_WRLCK`|`O_WRONLY` hoặc `O_RDWR`|
 
-Finally, the call to `fcntl()` actually sets, clears, or gets the lock.
-See, the second argument (the `cmd`) to `fcntl()` tells it what to do
-with the data passed to it in the `struct flock`. The following list
-summarizes what each `fcntl()` `cmd` does:
+Cuối cùng, lệnh gọi `fcntl()` thực sự đặt, xóa, hoặc lấy khóa. Đối số
+thứ hai (`cmd`) của `fcntl()` cho biết phải làm gì với dữ liệu được
+truyền vào trong `struct flock`. Danh sách sau tóm tắt những gì mỗi `cmd`
+của `fcntl()` thực hiện:
 
-|`cmd`|Description|
+|`cmd`|Mô tả|
 |:--------:|-------------------------------------------------------|
-|`F_SETLKW`|This argument tells `fcntl()` to attempt to obtain the lock requested in the `struct flock` structure. If the lock cannot be obtained (since someone else has it locked already), `fcntl()` will wait (block) until the lock has cleared, then will set it itself. This is a very useful command. I use it all the time.|
-|`F_SETLK`|This function is almost identical to `F_SETLKW`. The only difference is that this one will not wait if it cannot obtain a lock. It will return immediately with `-1`. This function can be used to clear a lock by setting the `l_type` field in the `struct flock` to `F_UNLCK`.|
-|`F_GETLK`|If you want to only check to see if there is a lock, but don't want to set one, you can use this command. It looks through all the file locks until it finds one that conflicts with the lock you specified in the `struct flock`. It then copies the conflicting lock's information into the `struct` and returns it to you. If it can't find a conflicting lock, `fcntl()` returns the `struct` as you passed it, except it sets the `l_type` field to `F_UNLCK`.|
+|`F_SETLKW`|Đối số này yêu cầu `fcntl()` cố lấy khóa được yêu cầu trong cấu trúc `struct flock`. Nếu không thể lấy khóa (vì ai đó khác đã khóa rồi), `fcntl()` sẽ đợi (block) cho đến khi khóa được giải phóng, sau đó sẽ tự đặt khóa. Đây là lệnh rất hữu ích. Tôi dùng nó mọi lúc.|
+|`F_SETLK`|Hàm này gần giống với `F_SETLKW`. Sự khác biệt duy nhất là hàm này sẽ không đợi nếu không thể lấy khóa. Nó sẽ trả về ngay với `-1`. Hàm này có thể được dùng để xóa khóa bằng cách đặt trường `l_type` trong `struct flock` thành `F_UNLCK`.|
+|`F_GETLK`|Nếu bạn chỉ muốn kiểm tra xem có khóa không, nhưng không muốn đặt khóa, bạn có thể dùng lệnh này. Nó tìm qua tất cả các khóa file cho đến khi tìm thấy một cái xung đột với khóa bạn chỉ định trong `struct flock`. Sau đó nó sao chép thông tin khóa xung đột vào `struct` và trả về cho bạn. Nếu không tìm thấy khóa xung đột, `fcntl()` trả về `struct` như bạn đã truyền vào, ngoại trừ đặt trường `l_type` thành `F_UNLCK`.|
 
 
-In our above example, we call `fcntl()` with `F_SETLKW` as the argument,
-so it blocks until it can set the lock, then sets it and continues.
+Trong ví dụ trên của chúng ta, chúng ta gọi `fcntl()` với `F_SETLKW`
+như đối số, vì vậy nó block cho đến khi có thể đặt khóa, rồi đặt nó
+và tiếp tục.
 
-## Clearing a lock
+## Xóa khóa
 
-Whew! After all the locking stuff up there, it's time for something
-easy: unlocking! Actually, this is a piece of cake in comparison. I'll
-just reuse that first example and add the code to unlock it at the end:
+Ôi! Sau tất cả những thứ khóa ở trên, đã đến lúc để làm điều gì đó dễ:
+mở khóa! Thực ra, điều này đơn giản hơn khi so sánh. Tôi sẽ chỉ tái sử
+dụng ví dụ đầu tiên đó và thêm code để mở khóa nó ở cuối:
 
 ``` {.c}
 struct flock fl = {
@@ -141,24 +138,25 @@ fl.l_type = F_UNLCK;     /* tell it to unlock the region */
 fcntl(fd, F_SETLK, &fl); /* set the region to unlocked   */
 ```
 
-Now, I left the old locking code in there for high contrast, but you can
-tell that I just changed the `l_type` field to `F_UNLCK` (leaving the
-others completely unchanged!) and called `fcntl()` with `F_SETLK` as the
-command. Easy!
+Bây giờ, tôi đã để code khóa cũ trong đó để tương phản cao, nhưng bạn
+có thể thấy rằng tôi chỉ thay đổi trường `l_type` thành `F_UNLCK` (để
+các trường khác hoàn toàn không thay đổi!) và gọi `fcntl()` với `F_SETLK`
+như lệnh. Dễ thôi!
 
-## A demo program
+## Một chương trình demo
 
-Here, I will include a demo program, `lockdemo.c`, that waits for the
-user to hit return, then locks its own source, waits for another return,
-then unlocks it. By running this program in two (or more) windows, you
-can see how programs interact while waiting for locks.
+Ở đây, tôi sẽ bao gồm một chương trình demo, `lockdemo.c`, đợi người
+dùng nhấn return, sau đó khóa nguồn của nó, đợi một lần return khác,
+rồi mở khóa. Bằng cách chạy chương trình này trong hai (hoặc nhiều hơn)
+cửa sổ, bạn có thể thấy cách các chương trình tương tác trong khi đợi
+khóa.
 
-Basically, usage is this: if you run `lockdemo` with no command line
-arguments, it tries to grab a write lock (`F_WRLCK`) on its source
-(`lockdemo.c`). If you start it with any command line arguments at all,
-it tries to get a read lock (`F_RDLCK`) on it.
+Về cơ bản, cách dùng là: nếu bạn chạy `lockdemo` mà không có đối số
+dòng lệnh, nó sẽ cố lấy write lock (`F_WRLCK`) trên nguồn của nó
+(`lockdemo.c`). Nếu bạn khởi động nó với bất kỳ đối số dòng lệnh nào,
+nó sẽ cố lấy read lock (`F_RDLCK`) trên nó.
 
-[flx[Here's the source|lockdemo.c]]:
+[flx[Đây là mã nguồn|lockdemo.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -213,33 +211,33 @@ int main(int argc, char *argv[])
 }
 ```
 
-Compile that puppy up and start messing with it in a couple windows.
-Notice that when one `lockdemo` has a read lock, other instances of the
-program can get their own read locks with no problem. It's only when a
-write lock is obtained that other processes can't get a lock of any
-kind.
+Biên dịch thằng đó lên và bắt đầu mày mò với nó trong vài cửa sổ. Lưu
+ý rằng khi một `lockdemo` có read lock, các instance khác của chương
+trình có thể lấy read lock của riêng chúng mà không có vấn đề gì. Chỉ
+khi write lock được lấy thì các tiến trình khác mới không thể lấy khóa
+bất kỳ loại nào.
 
-Another thing to notice is that you can't get a write lock if there are
-any read locks on the same region of the file. The process waiting to
-get the write lock will wait until all the read locks are cleared. One
-upshot of this is that you can keep piling on read locks (because a read
-lock doesn't stop other processes from getting read locks) and any
-processes waiting for a write lock will sit there and starve. There
-isn't a rule anywhere that keeps you from adding more read locks if
-there is a process waiting for a write lock. You must be careful.
+Một điều nữa cần lưu ý là bạn không thể lấy write lock nếu có bất kỳ
+read lock nào trên cùng vùng của file. Tiến trình đang đợi lấy write lock
+sẽ đợi cho đến khi tất cả các read lock được giải phóng. Một hệ quả của
+điều này là bạn có thể tiếp tục thêm read lock (vì read lock không ngăn
+các tiến trình khác lấy read lock) và bất kỳ tiến trình nào đang đợi
+write lock sẽ ngồi đó và chết đói. Không có quy tắc nào ở bất kỳ đâu
+ngăn bạn thêm nhiều read lock hơn nếu có một tiến trình đang đợi write
+lock. Bạn phải cẩn thận.
 
-Practically, though, you will probably mostly be using write locks to
-guarantee exclusive access to a file for a short amount of time while
-it's being updated; that is the most common use of locks as far as I've
-seen. And I've seen them all...well, I've seen one...a small one...a
-picture---well, I've heard about them.
+Trong thực tế, bạn có thể sẽ chủ yếu dùng write lock để đảm bảo truy
+cập độc quyền vào file trong một thời gian ngắn trong khi nó đang được
+cập nhật; đó là cách dùng phổ biến nhất của khóa theo những gì tôi đã
+thấy. Và tôi đã thấy tất cả...thực ra tôi đã thấy một cái...một cái nhỏ
+...một hình ảnh---thực ra tôi đã nghe về chúng.
 
-## Summary
+## Tóm tắt
 
-Locks rule. Sometimes, though, you might need more control over your
-processes in a producer-consumer situation. For this reason, if no
-other, you should see the document on System V
-[semaphores](#svsemaphores) (or POSIX, for that matter; they aren't
-identical) if your system supports such a beast. They provide a more
-extensive and at least equally function equivalent to file locks.
-
+Khóa thật tuyệt. Đôi khi, tuy nhiên, bạn có thể cần kiểm soát nhiều hơn
+đối với các tiến trình trong một tình huống nhà sản xuất-người tiêu thụ.
+Vì lý do này, nếu không có lý do nào khác, bạn nên xem tài liệu về
+[semaphore](#svsemaphores) System V (hoặc POSIX, thực ra; chúng không
+giống nhau) nếu hệ thống của bạn hỗ trợ loài thú đó. Chúng cung cấp một
+tương đương mở rộng hơn và ít nhất là ngang bằng về chức năng với file
+lock.
