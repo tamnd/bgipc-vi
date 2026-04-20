@@ -7,42 +7,42 @@
 <!-- Shared Memory Segments -->
 <!-- ======================================================= -->
 
-# System V Shared Memory Segments {#svshm}
+# Vùng Nhớ Dùng Chung System V {#svshm}
 
-The cool thing about shared memory segments is that they are what they
-sound like: a segment of memory that is shared between processes. I
-mean, think of the potential of this! You could allocate a block of
-player information for a multi-player game and have each process access
-it at will! Fun, fun, fun. (Of course, memory-mapped files accomplish
-the same thing and have the added advantage of persistence, albeit with
-the same caveats that apply to shared memory.)
+Điều thú vị về các vùng nhớ dùng chung là chúng đúng như tên gọi: một
+vùng nhớ được chia sẻ giữa các tiến trình. Ý tôi là, hãy nghĩ về tiềm
+năng của điều này! Bạn có thể cấp phát một khối thông tin người chơi
+cho một trò chơi nhiều người chơi và để mỗi tiến trình truy cập vào đó
+tùy ý! Vui, vui, vui. (Tất nhiên, các file được ánh xạ bộ nhớ cũng làm
+được điều tương tự và có thêm ưu điểm là tính bền vững, dù có những
+điểm lưu ý tương tự áp dụng cho bộ nhớ dùng chung.)
 
-There are, as usual, more gotchas to watch out for, but it's all pretty
-easy in the long run. See, you just connect to the shared memory
-segment, and get a pointer to the memory. You can read and write to this
-pointer and all changes you make will be visible to everyone else
-connected to the segment. There is nothing simpler. Well, there is,
-actually, but I was just trying to make you more comfortable.
+Như thường lệ, có nhiều điều cần chú ý hơn, nhưng tất cả khá dễ về lâu
+dài. Bạn chỉ cần kết nối vào vùng nhớ dùng chung, và lấy một con trỏ
+đến vùng nhớ. Bạn có thể đọc và ghi vào con trỏ này và mọi thay đổi bạn
+thực hiện sẽ hiển thị cho tất cả những người khác kết nối vào vùng. Không
+có gì đơn giản hơn. Ừ thì, thực ra có, nhưng tôi chỉ đang cố làm bạn
+thoải mái hơn thôi.
 
-## Creating the segment and connecting
+## Tạo Vùng và Kết Nối
 
-Similarly to other forms of System V IPC, a shared memory segment is
-created and connected to via the `shmget()` call:
+Tương tự như các hình thức System V IPC khác, một vùng nhớ dùng chung
+được tạo và kết nối thông qua lệnh gọi `shmget()`:
 
 ``` {.c}
 int shmget(key_t key, size_t size, int shmflg);
 ```
 
-Upon successful completion, `shmget()` returns an identifier for the
-shared memory segment. The `key` argument should be created the same as
-was shown in the [Message Queues](#svmqftok) document, using `ftok()`.
-The next argument, `size`, is the size in bytes of the shared memory
-segment. Finally, the `shmflg` should be set to the permissions of the
-segment bitwise-OR'd with `IPC_CREAT` if you want to create the segment,
-but can be `0` otherwise. (It doesn't hurt to specify `IPC_CREAT` every
-time---it will simply connect you if the segment already exists.)
+Khi hoàn thành thành công, `shmget()` trả về một định danh cho vùng nhớ
+dùng chung. Đối số `key` nên được tạo theo cách tương tự như được trình
+bày trong tài liệu [Hàng Đợi Tin Nhắn](#svmqftok), sử dụng `ftok()`.
+Đối số tiếp theo, `size`, là kích thước tính bằng byte của vùng nhớ dùng
+chung. Cuối cùng, `shmflg` nên được đặt thành quyền của vùng OR theo bit
+với `IPC_CREAT` nếu bạn muốn tạo vùng, nhưng có thể là `0` trong trường
+hợp khác. (Không sao khi chỉ định `IPC_CREAT` mọi lúc---nó chỉ kết nối
+bạn nếu vùng đã tồn tại.)
 
-Here's an example call that creates a 1K segment with `644` permissions
+Đây là một lệnh gọi ví dụ tạo một vùng 1K với quyền `644`
 (`rw-r--r--`):
 
 ``` {.c}
@@ -53,34 +53,34 @@ key = ftok("/home/beej/somefile3", 'R');
 shmid = shmget(key, 1024, 0644 | IPC_CREAT);
 ```
 
-(It may not be possible to actually create a 1K segment, as the
-operating system is allowed to increase the size to fit any internal
-constraints it may have. For example, on a system with 4K virtual pages,
-it's likely the size will be increased to 4K. Of course, your program
-won't know or care; this is just an implementation detail.)
+(Thực tế có thể không tạo được vùng 1K, vì hệ điều hành được phép tăng
+kích thước để phù hợp với bất kỳ ràng buộc nội bộ nào nó có. Ví dụ,
+trên hệ thống với trang bộ nhớ ảo 4K, kích thước có khả năng sẽ được
+tăng lên 4K. Tất nhiên, chương trình của bạn sẽ không biết hay quan tâm;
+đây chỉ là chi tiết triển khai.)
 
-But how do you get a pointer to that data from the `shmid` handle? The
-answer is in the call `shmat()`, in the following section.
+Nhưng làm thế nào bạn lấy con trỏ tới dữ liệu đó từ handle `shmid`?
+Câu trả lời nằm ở lệnh gọi `shmat()`, trong phần tiếp theo.
 
-## Attach me---getting a pointer to the segment
+## Gắn Vào---Lấy Con Trỏ Đến Vùng
 
-Before you can use a shared memory segment, you have to attach yourself
-to it using the `shmat()` call:
+Trước khi bạn có thể sử dụng một vùng nhớ dùng chung, bạn phải gắn bản
+thân vào nó bằng lệnh gọi `shmat()`:
 
 ``` {.c}
 void *shmat(int `shmid`, void *`shmaddr`, int `shmflg`);
 ```
 
-What does it all mean? Well, `shmid` is the shared memory ID you got
-from the call to `shmget()`. Next is `shmaddr`, which you can use to
-tell `shmat()` which specific address to use but you should just set it
-to `0` and let the OS choose the address for you. Finally, the `shmflg`
-can be set to `SHM_RDONLY` if you only want to read from it, `0`
-otherwise. (Check the man pages for other useful flags that can be
-included.)
+Tất cả nghĩa là gì? Vâng, `shmid` là ID bộ nhớ dùng chung bạn lấy từ
+lệnh gọi `shmget()`. Tiếp theo là `shmaddr`, mà bạn có thể dùng để nói
+với `shmat()` địa chỉ cụ thể nào cần dùng, nhưng bạn chỉ cần đặt nó
+thành `0` và để hệ điều hành chọn địa chỉ cho bạn. Cuối cùng, `shmflg`
+có thể được đặt thành `SHM_RDONLY` nếu bạn chỉ muốn đọc từ nó, `0`
+trong trường hợp khác. (Xem trang man để biết các flag hữu ích khác có
+thể được bao gồm.)
 
-Here's a more complete example of how to get a pointer to a shared
-memory segment:
+Đây là một ví dụ đầy đủ hơn về cách lấy con trỏ đến một vùng nhớ dùng
+chung:
 
 ``` {.c}
 key_t key;
@@ -92,15 +92,15 @@ shmid = shmget(key, 1024, 0644 | IPC_CREAT);
 data = shmat(shmid, (void *)0, 0);
 ```
 
-And _bammo_! You have the pointer to the shared memory segment! Notice
-that `shmat()` returns a `void` pointer, and we're treating it, in this
-case, as a `char` pointer. You can treat it as anything you like,
-depending on what kind of data you have in there. Pointers to arrays of
-structures are just as acceptable as anything else.
+Và _boom_! Bạn đã có con trỏ đến vùng nhớ dùng chung! Lưu ý rằng
+`shmat()` trả về một con trỏ `void`, và ta đang xử lý nó, trong trường
+hợp này, như một con trỏ `char`. Bạn có thể xử lý nó như bất cứ thứ gì
+bạn muốn, tùy thuộc vào loại dữ liệu bạn có trong đó. Con trỏ đến mảng
+của các cấu trúc đều được chấp nhận như bất cứ thứ gì khác.
 
-Also, it's interesting to note that `shmat()` returns `-1` on failure
-(as does `mmap()`). But how do you get `-1` in a `void` pointer? Just do
-a cast during the comparison to check for errors:
+Ngoài ra, điều thú vị cần lưu ý là `shmat()` trả về `-1` khi thất bại
+(như `mmap()`). Nhưng làm thế nào bạn lấy `-1` trong một con trỏ `void`?
+Chỉ cần cast trong quá trình so sánh để kiểm tra lỗi:
 
 ``` {.c}
 data = shmat(shmid, (void *)0, 0);
@@ -108,110 +108,105 @@ if (data == MAP_FAILED)
     perror("shmat");
 ```
 
-(It's important to note that the integer is being cast to a pointer, and
-not the pointer return value being cast to an integer. It's a subtle
-difference, but the latter is not always portable between architectures.
-Also note that the cast is to `void*` and not `char*`, as you might
-expect. Since the language guarantees that implicit casts from `void*`
-to any other kind of pointer are always safe and reliable, it's better
-to use `void*` and let the compiler to the work.)
+(Điều quan trọng cần lưu ý là số nguyên đang được cast thành con trỏ,
+không phải giá trị trả về con trỏ đang được cast thành số nguyên. Đó là
+sự khác biệt tinh tế, nhưng cái sau không phải lúc nào cũng khả chuyển
+giữa các kiến trúc. Cũng lưu ý rằng việc cast là sang `void*` chứ không
+phải `char*`, như bạn có thể mong đợi. Vì ngôn ngữ đảm bảo rằng các
+cast ẩn từ `void*` sang bất kỳ loại con trỏ nào khác luôn an toàn và
+đáng tin cậy, tốt hơn là dùng `void*` và để compiler làm việc.)
 
-All you have to do now is change the data it points to normal
-pointer-style. There are some samples in the next section.
+Tất cả những gì bạn phải làm bây giờ là thay đổi dữ liệu nó trỏ đến
+theo kiểu con trỏ thông thường. Có một số mẫu trong phần tiếp theo.
 
-## Reading and Writing
+## Đọc và Ghi
 
-Lets say you have the `data` pointer from the above example. It is a
-`char` pointer, so we'll be reading and writing chars from it.
-Furthermore, for the sake of simplicity, lets say the 1K shared memory
-segment contains a null-terminated string.
+Giả sử bạn có con trỏ `data` từ ví dụ trên. Đó là con trỏ `char`, vì
+vậy ta sẽ đọc và ghi char từ nó. Hơn nữa, để đơn giản, giả sử vùng nhớ
+dùng chung 1K chứa một chuỗi kết thúc null.
 
-It couldn't be easier. Since it's just a string in there, we can print
-it like this:
+Không thể đơn giản hơn. Vì đó chỉ là một chuỗi trong đó, ta có thể in
+nó như thế này:
 
 ``` {.c}
 printf("shared contents: %s\n", data);
 ```
 
-And we could store something in it as easily as this:
+Và ta có thể lưu thứ gì đó vào đó dễ dàng như thế này:
 
 ``` {.c}
 printf("Enter a string: ");
 fgets(data, 1024, stdin);
 ```
 
-Of course, like I said earlier, you can have other data in there besides
-just `char`s. I'm just using them as an example. I'll just make the
-assumption that you're familiar enough with pointers in C that you'll be
-able to deal with whatever kind of data you stick in there.
+Tất nhiên, như tôi đã nói trước đó, bạn có thể có dữ liệu khác trong đó
+chứ không chỉ `char`. Tôi chỉ dùng chúng làm ví dụ. Tôi chỉ giả định
+rằng bạn đã đủ quen với con trỏ trong C để có thể xử lý bất kỳ loại dữ
+liệu nào bạn nhét vào đó.
 
-## Detaching from and deleting segments
+## Tách Ra Và Xóa Vùng
 
-When you're done with the shared memory segment, your program should
-detach itself from it using the `shmdt()` call (if you don't, this will
-happen automatically when the process terminates):
+Khi bạn dùng xong vùng nhớ dùng chung, chương trình của bạn nên tách
+bản thân ra khỏi nó bằng lệnh gọi `shmdt()` (nếu bạn không làm, điều
+này sẽ tự động xảy ra khi tiến trình kết thúc):
 
 ``` {.c}
 int shmdt(void *`shmaddr`);
 ```
 
-The only argument, `shmaddr`, is the address you got from `shmat()`. The
-function returns `-1` on error, `0` on success.
+Đối số duy nhất, `shmaddr`, là địa chỉ bạn lấy từ `shmat()`. Hàm trả
+về `-1` khi lỗi, `0` khi thành công.
 
-When you detach from the segment, it isn't destroyed. Nor is it removed
-when _everyone_ detaches from it. You have to specifically destroy it
-using a call to `shmctl()`, similar to the control calls for the other
-System V IPC functions:
+Khi bạn tách ra khỏi vùng, nó không bị hủy. Cũng không bị xóa khi _mọi
+người_ tách ra khỏi nó. Bạn phải xóa nó một cách cụ thể bằng lệnh gọi
+`shmctl()`, tương tự như các lệnh gọi kiểm soát cho các hàm System V IPC
+khác:
 
 ``` {.c}
 shmctl(shmid, IPC_RMID, NULL);
 ```
 
-The above call deletes the shared memory segment, assuming no one else
-is attached to it. The `shmctl()` function does a lot more than this,
-though, and is worth looking into. (On your own, of course, since this
-is only an overview!)
+Lệnh gọi trên xóa vùng nhớ dùng chung, giả sử không có ai khác gắn vào
+nó. Hàm `shmctl()` làm được nhiều hơn thế, và đáng để tìm hiểu. (Theo
+cách riêng của bạn, tất nhiên, vì đây chỉ là tổng quan!)
 
-As always, you can destroy the shared memory segment from the command
-line using the `ipcrm` Unix command. Also, be sure that you don't leave
-any unused shared memory segments sitting around wasting system
-resources. All the System V IPC objects you own can be viewed using the
-`ipcs` command.
+Như thường lệ, bạn có thể xóa vùng nhớ dùng chung từ dòng lệnh bằng
+lệnh Unix `ipcrm`. Ngoài ra, hãy đảm bảo rằng bạn không để lại bất kỳ
+vùng nhớ dùng chung nào không dùng đến đang lãng phí tài nguyên hệ
+thống. Tất cả các đối tượng System V IPC bạn sở hữu có thể được xem bằng
+lệnh `ipcs`.
 
-## Concurrency {#svshmcon}
+## Đồng Thời {#svshmcon}
 
-What are concurrency issues? Well, since you have multiple processes
-modifying the shared memory segment, it is possible that certain errors
-could crop up when updates to the segment occur simultaneously. This
-_concurrent_ access is almost always a problem when you have multiple
-writers to a shared object.
+Các vấn đề đồng thời là gì? Vâng, vì bạn có nhiều tiến trình sửa đổi
+vùng nhớ dùng chung, một số lỗi có thể xảy ra khi các cập nhật vào vùng
+xảy ra đồng thời. Truy cập _đồng thời_ này hầu như luôn là vấn đề khi
+bạn có nhiều writer vào một đối tượng dùng chung.
 
-The way to get around this is to use [Semaphores](#svsemaphores) to lock
-the shared memory segment while a process is writing to it. (Sometimes
-the lock will encompass both a read and write to the shared memory,
-depending on what you're doing.)
+Cách giải quyết là dùng [Semaphore](#svsemaphores) để khóa vùng nhớ
+dùng chung trong khi một tiến trình đang ghi vào nó. (Đôi khi khóa sẽ
+bao gồm cả việc đọc và ghi vào bộ nhớ dùng chung, tùy thuộc vào những
+gì bạn đang làm.)
 
-A true discussion of concurrency is beyond the scope of this paper, and
-you might want to check out the [flw[Wikipedia article on the
-matter|Concurrency]]. I'll just leave it with this: if you start getting
-weird inconsistencies in your shared data when you connect two or more
-processes to it, you could very well have a concurrency problem.
+Một cuộc thảo luận thực sự về tính đồng thời nằm ngoài phạm vi của tài
+liệu này, và bạn có thể muốn xem [flw[bài viết Wikipedia về vấn đề
+này|Concurrency]]. Tôi chỉ để lại điều này: nếu bạn bắt đầu thấy sự
+không nhất quán kỳ lạ trong dữ liệu dùng chung của mình khi bạn kết nối
+hai tiến trình trở lên vào nó, rất có thể bạn đang có vấn đề đồng thời.
 
-## Sample code
+## Code Mẫu
 
-Now that I've primed you on all the dangers of concurrent access to a
-shared memory segment without using semaphores, I'll show you a demo
-that does just that. Since this isn't a mission-critical application,
-and it's unlikely that you'll be accessing the shared data at the same
-time as any other process, I'll just leave the semaphores out for the
-sake of simplicity.
+Bây giờ tôi đã chuẩn bị cho bạn về tất cả các mối nguy hiểm của truy
+cập đồng thời vào vùng nhớ dùng chung mà không dùng semaphore, tôi sẽ
+cho bạn xem một bản demo làm chính xác điều đó. Vì đây không phải ứng
+dụng quan trọng, và ít có khả năng bạn đang truy cập dữ liệu dùng chung
+cùng lúc với tiến trình khác, tôi sẽ bỏ semaphore ra để đơn giản.
 
-This program does one of two things: if you run it with no command line
-parameters, it prints the contents of the shared memory segment. If you
-give it one command line parameter, it stores that parameter in the
-shared memory segment.
+Chương trình này làm một trong hai điều: nếu bạn chạy nó mà không có
+tham số dòng lệnh, nó in nội dung của vùng nhớ dùng chung. Nếu bạn đưa
+cho nó một tham số dòng lệnh, nó lưu tham số đó vào vùng nhớ dùng chung.
 
-Here's the code for [flx[`shmdemo.c`|shmdemo.c]]:
+Đây là code cho [flx[`shmdemo.c`|shmdemo.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -275,12 +270,12 @@ int main(int argc, char *argv[])
 }
 ```
 
-More commonly, a process will attach to the segment and run for a bit
-while other programs are changing and reading the shared segment. It's
-neat to watch one process update the segment and see the changes appear
-to other processes. Again, for simplicity, the sample code doesn't do
-that, but you can see how the data is shared between independent
-processes.
+Thông thường hơn, một tiến trình sẽ gắn vào vùng và chạy một lúc trong
+khi các chương trình khác đang thay đổi và đọc vùng dùng chung. Thú vị
+khi xem một tiến trình cập nhật vùng và thấy các thay đổi xuất hiện với
+các tiến trình khác. Một lần nữa, để đơn giản, code mẫu không làm điều
+đó, nhưng bạn có thể thấy dữ liệu được chia sẻ giữa các tiến trình độc
+lập như thế nào.
 
-Also, there's no code in here for removing the segment---be sure to do
-that when you're done messing with it.
+Ngoài ra, không có code nào ở đây để xóa vùng---hãy đảm bảo làm điều đó
+khi bạn dùng xong.
