@@ -7,36 +7,35 @@
 <!-- Semaphores -->
 <!-- ======================================================= -->
 
-# System V Semaphores {#svsemaphores}
+# Semaphore System V {#svsemaphores}
 
-Remember [file locking](#flocking)? Well, semaphores can be thought of
-as really generic advisory locking mechanisms. You can use them to
-control access to files, [shared memory](#svshm), and, well, just about
-anything you want. The basic functionality of a semaphore is that you
-can either set it, check it, or wait until it clears then set it
-("test-n-set"). No matter how complex the stuff that follows gets,
-remember those three operations.
+Bạn còn nhớ [khóa file](#flocking) không? Vâng, semaphore có thể được
+coi như một cơ chế khóa advisory rất tổng quát. Bạn có thể dùng chúng
+để kiểm soát truy cập vào file, [bộ nhớ dùng chung](#svshm), và thực ra
+bất cứ thứ gì bạn muốn. Chức năng cơ bản của semaphore là bạn có thể
+đặt nó, kiểm tra nó, hoặc chờ cho đến khi nó được xóa rồi đặt nó
+("test-n-set"). Dù những thứ tiếp theo có phức tạp đến đâu, hãy nhớ ba
+thao tác đó.
 
-This document will provide an overview of semaphore functionality, and
-will end with a program that uses semaphores to control access to a
-file. (This task, admittedly, could easily be handled with file locking,
-but it makes a good example since it's easier to wrap your head around
-than, say, shared memory.)
+Tài liệu này sẽ cung cấp tổng quan về chức năng semaphore, và kết thúc
+bằng một chương trình sử dụng semaphore để kiểm soát truy cập vào một
+file. (Nhiệm vụ này, thực ra, có thể dễ dàng được xử lý bằng khóa file,
+nhưng nó là một ví dụ tốt vì dễ hiểu hơn, chẳng hạn như bộ nhớ dùng
+chung.)
 
 <!-- ======================================================= -->
 <!-- Grabbing some semaphores -->
 <!-- ======================================================= -->
 
-## Grabbing some semaphores
+## Lấy Một Số Semaphore
 
-With System V IPC, you don't grab single semaphores; you grab _sets_ of
-semaphores. You can, of course, grab a semaphore set that only has one
-semaphore in it, but the point is you can have a whole slew of
-semaphores just by creating a single semaphore set.
+Với System V IPC, bạn không lấy các semaphore đơn lẻ; bạn lấy _tập
+hợp_ semaphore. Bạn có thể, tất nhiên, lấy một tập hợp semaphore chỉ
+có một semaphore, nhưng điểm quan trọng là bạn có thể có cả một loạt
+semaphore chỉ bằng cách tạo một tập hợp semaphore duy nhất.
 
-How do you create the semaphore set? It's done with a call to
-`semget()`, which returns the semaphore id (hereafter referred to as the
-`semid`):
+Làm thế nào bạn tạo tập hợp semaphore? Nó được thực hiện bằng một lệnh
+gọi tới `semget()`, trả về ID semaphore (từ đây gọi là `semid`):
 
 
 ``` {.c}
@@ -45,25 +44,24 @@ How do you create the semaphore set? It's done with a call to
 int semget(key_t key, int nsems, int semflg);
 ```
 
-What's the `key`? It's a unique identifier that is used by different
-processes to identify this semaphore set. (This `key` will be generated
-using `ftok()`, described in the [Message Queues section](#svmqftok).)
+`key` là gì? Đó là một định danh duy nhất được các tiến trình khác nhau
+sử dụng để xác định tập hợp semaphore này. (Cái `key` này sẽ được tạo
+ra bằng `ftok()`, mô tả trong [phần Hàng Đợi Tin Nhắn](#svmqftok).)
 
-The next argument, `nsems`, is (you guessed it!) the number of
-semaphores in this semaphore set. The maximum number is system
-dependent, but it's probably around 32000. If you're needing more
-(greedy wretch!), just get another semaphore set. You may pass `0` if
-you're connecting to an existing semaphore set, but you must specify a
-positive number if you're creating a new semaohore set.
+Đối số tiếp theo, `nsems`, là (bạn đoán đúng rồi!) số semaphore trong
+tập hợp semaphore này. Số tối đa phụ thuộc hệ thống, nhưng có lẽ khoảng
+32000. Nếu bạn cần nhiều hơn (đồ tham lam!), chỉ cần lấy thêm một tập
+hợp semaphore khác. Bạn có thể truyền `0` nếu đang kết nối vào một tập
+hợp semaphore đã tồn tại, nhưng phải chỉ định số dương nếu bạn đang tạo
+một tập hợp semaphore mới.
 
-Finally, there's the `semflg` argument. This tells `semget()` what the
-permissions should be on the new semaphore set, whether you're creating
-a new set or just want to connect to an existing one, and other things
-that you can look up. For creating a new set, permissions can be
-bitwise-OR'd with `IPC_CREAT`.
+Cuối cùng, có đối số `semflg`. Nó cho `semget()` biết quyền trên tập
+hợp semaphore mới là gì, bạn đang tạo tập mới hay chỉ muốn kết nối vào
+tập đã có, và các thứ khác mà bạn có thể tìm hiểu. Để tạo một tập mới,
+quyền có thể được OR theo bit với `IPC_CREAT`.
 
-Here's an example call that generates the `key` with `ftok()` and
-creates a 10 semaphore set, with 666 (`rw-rw-rw-`) permissions:
+Đây là một lệnh gọi ví dụ tạo `key` bằng `ftok()` và tạo một tập hợp
+10 semaphore, với quyền 666 (`rw-rw-rw-`):
 
 ``` {.c}
 #include <sys/ipc.h>
@@ -76,65 +74,62 @@ key = ftok("/home/beej/somefile", 'E');
 semid = semget(key, 10, 0666 | IPC_CREAT);
 ```
 
-Congrats! You've created a new semaphore set! After running the program
-you can check it out with the `ipcs` command. (Don't forget to remove it
-when you're done with it with `ipcrm`!)
+Chúc mừng! Bạn vừa tạo một tập hợp semaphore mới! Sau khi chạy chương
+trình, bạn có thể kiểm tra bằng lệnh `ipcs`. (Đừng quên xóa nó khi
+dùng xong bằng `ipcrm`!)
 
-Wait! Warning! _¡Advertencia! ¡No pongas las manos en la tolva!_ (That's
-the only Spanish I learned while working at Pizza Hut in 1990.  It was
-printed on the dough roller.) Look here:
+Chờ đã! Cảnh báo! _¡Advertencia! ¡No pongas las manos en la tolva!_
+(Đó là câu tiếng Tây Ban Nha duy nhất tôi học được khi làm việc ở Pizza
+Hut năm 1990. Nó được in trên máy cán bột.) Hãy chú ý điều này:
 
-When you first create some semaphores, they're all uninitialized; it
-takes another call to mark them as free (namely to `semop()` or
-`semctl()`---see the following sections.) What does this mean? Well, it
-means that creation of a semaphore is not _atomic_ (in other words, it's
-not a one-step process). If two processes are trying to create,
-initialize, and use a semaphore at the same time, a race condition might
-develop.
+Khi bạn lần đầu tạo một số semaphore, chúng đều chưa được khởi tạo;
+cần một lệnh gọi khác để đánh dấu chúng là trống (cụ thể là `semop()`
+hoặc `semctl()`---xem các phần tiếp theo.) Điều này có nghĩa là gì? Ý
+nghĩa là việc tạo semaphore không phải _atomic_ (nói cách khác, nó không
+phải là một quá trình một bước). Nếu hai tiến trình đang cố tạo, khởi
+tạo và sử dụng semaphore cùng một lúc, một điều kiện race có thể xảy ra.
 
-One way to get around this difficulty is by having a single init process
-that creates and initializes the semaphore long before the main
-processes begin to run. The main process just accesses it, but never
-creates nor destroys it.
+Một cách để vượt qua khó khăn này là có một tiến trình khởi tạo duy nhất
+tạo và khởi tạo semaphore từ lâu trước khi các tiến trình chính bắt đầu
+chạy. Tiến trình chính chỉ truy cập nó, không bao giờ tạo hay hủy nó.
 
-Stevens refers to this problem as the semaphore's "fatal flaw". He
-solves it by creating the semaphore set with the `IPC_EXCL` flag. If
-process 1 creates it first, process 2 will return an error on the call
-(with `errno` set to `EEXIST`.)  At that point, process 2 will have to
-wait until the semaphore is initialized by process 1. How can it tell?
-Turns out, it can repeatedly call `semctl()` with the `IPC_STAT` flag,
-and look at the `sem_otime` member of the returned `struct semid_ds`
-structure. If that's non-zero, it means process 1 has performed an
-operation on the semaphore with `semop()`, presumably to initialize it.
+Stevens đề cập đến vấn đề này là "lỗi chết người" của semaphore. Ông
+giải quyết nó bằng cách tạo tập hợp semaphore với cờ `IPC_EXCL`. Nếu
+tiến trình 1 tạo nó trước, tiến trình 2 sẽ trả về lỗi trong lệnh gọi
+(với `errno` được đặt thành `EEXIST`.) Lúc đó, tiến trình 2 sẽ phải chờ
+cho đến khi semaphore được khởi tạo bởi tiến trình 1. Làm sao biết được?
+Hóa ra, nó có thể gọi `semctl()` lặp đi lặp lại với cờ `IPC_STAT`, và
+xem thành viên `sem_otime` của cấu trúc `struct semid_ds` được trả về.
+Nếu giá trị đó khác không, có nghĩa là tiến trình 1 đã thực hiện một
+thao tác trên semaphore với `semop()`, có lẽ để khởi tạo nó.
 
-For an example of this, see the demonstration program
-[flx[`semdemo.c`|semdemo.c]], below, in which I generally reimplement
-[Stevens's code](http://www.kohala.com/start/unpv22e/unpv22e.html).
+Để xem ví dụ về điều này, hãy xem chương trình trình diễn
+[flx[`semdemo.c`|semdemo.c]], bên dưới, trong đó tôi tái triển khai một
+cách tổng quát [code của Stevens](http://www.kohala.com/start/unpv22e/unpv22e.html).
 
-In the meantime, let's hop to the next section and take a look at how to
-initialize our freshly-minted semaphores.
+Trong thời gian đó, hãy chuyển sang phần tiếp theo và xem cách khởi tạo
+các semaphore vừa tạo.
 
 <!-- ======================================================= -->
 <!-- Controlling semaphores -->
 <!-- ======================================================= -->
 
-## Controlling your semaphores with `semctl()`
+## Kiểm Soát Semaphore Của Bạn Với `semctl()`
 
-Once you have created your semaphore sets, you have to initialize them
-to a positive value to show that the resource is available to use. The
-function `semctl()` allows you to do atomic value changes to individual
-semaphores or complete sets of semaphores.
+Sau khi bạn tạo các tập hợp semaphore, bạn phải khởi tạo chúng về một
+giá trị dương để cho thấy tài nguyên đang sẵn sàng sử dụng. Hàm
+`semctl()` cho phép bạn thực hiện thay đổi giá trị atomic cho các
+semaphore riêng lẻ hoặc toàn bộ tập hợp semaphore.
 
 ``` {.c}
 int semctl(int semid, int semnum, int cmd, ... /*arg*/);
 ```
 
-`semid` is the semaphore set id that you get from your call to
-`semget()`, earlier. `semnum` is the ID of the semaphore that you wish
-to manipulate the value of. `cmd` is what you wish to do with the
-semaphore in question. The last "argument", "`arg`", if required, needs
-to be a `union semun`, which will be defined by you in your code to be
-one of these:
+`semid` là ID tập hợp semaphore bạn lấy từ lệnh gọi `semget()` trước
+đó. `semnum` là ID của semaphore mà bạn muốn thao tác giá trị. `cmd` là
+những gì bạn muốn làm với semaphore đó. Đối số cuối cùng, "`arg`", nếu
+cần, phải là một `union semun`, sẽ được bạn định nghĩa trong code của
+bạn là một trong những thứ sau:
 
 ``` {.c}
 union semun {
@@ -144,26 +139,26 @@ union semun {
 };
 ```
 
-(Note that `union semun` is now defined in the header files of modern
-Linux systems. However, I don't know what feature test macro to use to
-determine this, so only define this union if your system doesn't
-already. Read the docs for `semctl()` for more information.)
+(Lưu ý rằng `union semun` bây giờ được định nghĩa trong các file header
+của các hệ thống Linux hiện đại. Tuy nhiên, tôi không biết feature test
+macro nào để xác định điều này, vì vậy chỉ định nghĩa union này nếu hệ
+thống của bạn chưa có. Đọc tài liệu `semctl()` để biết thêm thông tin.)
 
-The various fields in the `union semun` are used depending on the value
-of the `cmd` parameter to `semctl()` (a partial list follows---see your
-local man page for more):
+Các trường khác nhau trong `union semun` được sử dụng tùy thuộc vào giá
+trị của tham số `cmd` cho `semctl()` (danh sách một phần như sau---xem
+trang man cục bộ của bạn để biết thêm):
 
-|`cmd`|Effect|
+|`cmd`|Hiệu ứng|
 |:--------:|----------------------------------------------------------|
-|`SETVAL`|Set the value of the specified semaphore to the value in the `val` member of the passed-in `union semun`.|
-|`GETVAL`|Return the value of the given semaphore.|
-|`SETALL`|Set the values of all the semaphores in the set to the values in the array pointed to by the `array` member of the passed-in `union semun`. The `semnum` parameter to `semctl()` isn't used.<|
-|`GETALL`|Gets the values of all the semaphores in the set and stores them in the array pointed to by the `array` member of the passed-in `union semun`. The `semnum` parameter to `semctl()` isn't used.|
-|`IPC_RMID`|Remove the specified semaphore set from the system. The `semnum` parameter is ignored.|
-|`IPC_STAT`|Load status information about the semaphore set into the `struct semid_ds` structure pointed to by the `buf` member of the `union semun`.|
+|`SETVAL`|Đặt giá trị của semaphore đã chỉ định thành giá trị trong thành viên `val` của `union semun` được truyền vào.|
+|`GETVAL`|Trả về giá trị của semaphore đã cho.|
+|`SETALL`|Đặt giá trị của tất cả semaphore trong tập hợp thành các giá trị trong mảng trỏ bởi thành viên `array` của `union semun` được truyền vào. Tham số `semnum` cho `semctl()` không được dùng.<|
+|`GETALL`|Lấy giá trị của tất cả semaphore trong tập hợp và lưu chúng vào mảng trỏ bởi thành viên `array` của `union semun` được truyền vào. Tham số `semnum` cho `semctl()` không được dùng.|
+|`IPC_RMID`|Xóa tập hợp semaphore đã chỉ định khỏi hệ thống. Tham số `semnum` bị bỏ qua.|
+|`IPC_STAT`|Tải thông tin trạng thái về tập hợp semaphore vào cấu trúc `struct semid_ds` trỏ bởi thành viên `buf` của `union semun`.|
 
-For the curious, here are the (abbreviated) contents of the `struct
-semid_ds` that is used in the `union semun`:
+Để tham khảo, đây là nội dung (rút gọn) của `struct semid_ds` được dùng
+trong `union semun`:
 
 ``` {.c}
 struct semid_ds {
@@ -174,19 +169,18 @@ struct semid_ds {
 };
 ```
 
-We'll use that `sem_otime` member later on when we write our `initsem()`
-in the sample code, below.
+Ta sẽ dùng thành viên `sem_otime` đó sau khi ta viết `initsem()` trong
+code mẫu bên dưới.
 
 <!-- ======================================================= -->
 <!-- semop(): Atomic power! -->
 <!-- ======================================================= -->
 
-## `semop()`: Atomic power!
+## `semop()`: Sức Mạnh Atomic!
 
-All operations that set, get, or test-n-set a semaphore use the
-`semop()` system call. This system call is general purpose, and its
-functionality is dictated by a structure that is passed to it, `struct
-sembuf`:
+Tất cả các thao tác đặt, lấy, hoặc test-n-set một semaphore đều sử dụng
+syscall `semop()`. Syscall này là đa năng, và chức năng của nó được điều
+khiển bởi một cấu trúc được truyền vào nó, `struct sembuf`:
 
 ``` {.c}
 /* Warning! Members might not be in this order! */
@@ -198,20 +192,19 @@ struct sembuf {
 };
 ```
 
-Of course, `sem_num` is the number of the semaphore in the set that you
-want to manipulate. Then, `sem_op` is what you want to do with that
-semaphore. This takes on different meanings, depending on whether
-`sem_op` is positive, negative, or zero, as shown in the following
-table:
+Tất nhiên, `sem_num` là số của semaphore trong tập hợp mà bạn muốn thao
+tác. Rồi, `sem_op` là những gì bạn muốn làm với semaphore đó. Nó mang
+các ý nghĩa khác nhau, tùy thuộc vào `sem_op` là dương, âm, hay bằng
+không, như được trình bày trong bảng sau:
 
-|`sem_op`|What happens|
+|`sem_op`|Điều xảy ra|
 |:------:|--------------------------------------------------------------|
-|Negative|Allocate resources. Block the calling process until the value of the semaphore is greater than or equal to the absolute value of `sem_op`. (That is, wait until enough resources have been freed by other processes for this one to allocate.)  Then add (effectively subtract, since it's negative) the value of `sem_op` to the semaphore's value.|
-|Positive|Release resources. The value of `sem_op` is added to the semaphore's value.|
-|Zero|This process will wait until the semaphore in question reaches 0.|
+|Âm|Phân bổ tài nguyên. Block tiến trình gọi cho đến khi giá trị của semaphore lớn hơn hoặc bằng giá trị tuyệt đối của `sem_op`. (Tức là chờ cho đến khi đủ tài nguyên được giải phóng bởi các tiến trình khác để tiến trình này có thể phân bổ.) Sau đó cộng (thực chất là trừ, vì nó âm) giá trị `sem_op` vào giá trị semaphore.|
+|Dương|Giải phóng tài nguyên. Giá trị `sem_op` được cộng vào giá trị semaphore.|
+|Không|Tiến trình này sẽ chờ cho đến khi semaphore đạt giá trị 0.|
 
-So, basically, what you do is load up a `struct sembuf` with whatever
-values you want, then call `semop()`, like this:
+Vậy, về cơ bản, những gì bạn làm là điền vào một `struct sembuf` với
+bất kỳ giá trị nào bạn muốn, rồi gọi `semop()`, như thế này:
 
 <!-- BOOKMARK -->
 
@@ -220,47 +213,46 @@ int semop(int semid, struct sembuf *sops,
           unsigned int nsops);
 ```
 
-The `semid` argument is the number obtained from the call to `semget()`.
-Next is `sops`, which is a pointer to the `struct sembuf` that you
-filled with your semaphore commands. If you want, though, you can make
-an array of `struct sembuf`s in order to do a whole bunch of semaphore
-operations at the same time. The way `semop()` knows that you're doing
-this is the `nsop` argument, which tells how many `struct sembuf`s
-you're sending it. If you only have one, well, put `1` as this argument.
+Đối số `semid` là số lấy từ lệnh gọi `semget()`. Tiếp theo là `sops`,
+là con trỏ tới `struct sembuf` bạn đã điền với các lệnh semaphore. Tuy
+nhiên, nếu muốn, bạn có thể tạo một mảng các `struct sembuf` để thực
+hiện một loạt các thao tác semaphore cùng một lúc. Cách `semop()` biết
+bạn đang làm điều này là đối số `nsop`, cho biết có bao nhiêu `struct
+sembuf` bạn đang gửi. Nếu bạn chỉ có một, hãy đặt `1` cho đối số này.
 
-One field in the `struct sembuf` that I haven't mentioned is the
-`sem_flg` field which allows the program to specify flags to further
-modify the effects of the `semop()` call.
+Một trường trong `struct sembuf` mà tôi chưa đề cập là trường `sem_flg`
+cho phép chương trình chỉ định các cờ để sửa đổi thêm hiệu ứng của lệnh
+gọi `semop()`.
 
-One of these flags is `IPC_NOWAIT` which, as the name suggests, causes
-the call to `semop()` to return with error `EAGAIN` if it encounters a
-situation where it would normally block. This is good for situations
-where you might want to "poll" to see if you can allocate a resource.
+Một trong số các cờ này là `IPC_NOWAIT`, như tên gợi ý, làm cho lệnh
+gọi `semop()` trả về với lỗi `EAGAIN` nếu nó gặp tình huống thông
+thường sẽ block. Điều này tốt cho các tình huống bạn muốn "thăm dò" xem
+bạn có thể phân bổ tài nguyên hay không.
 
-Another very useful flag is the `SEM_UNDO` flag. This causes `semop()`
-to record, in a way, the change made to the semaphore. When the program
-exits, the kernel will automatically undo all changes that were marked
-with the `SEM_UNDO` flag. Of course, your program should do its best to
-deallocate any resources it marks using the semaphore, but sometimes
-this isn't possible when your program gets a `SIGKILL` or some other
-awful crash happens.
+Một cờ rất hữu ích khác là cờ `SEM_UNDO`. Nó làm cho `semop()` ghi lại,
+theo một cách nào đó, sự thay đổi được thực hiện đối với semaphore. Khi
+chương trình thoát, kernel sẽ tự động hoàn tác tất cả các thay đổi được
+đánh dấu bằng cờ `SEM_UNDO`. Tất nhiên, chương trình của bạn nên cố
+gắng hết mức để giải phóng bất kỳ tài nguyên nào nó đánh dấu bằng
+semaphore, nhưng đôi khi điều này không thể thực hiện được khi chương
+trình của bạn nhận được `SIGKILL` hoặc một số sự cố khủng khiếp khác xảy
+ra.
 
 <!-- ======================================================= -->
 <!-- Destroying a semaphore -->
 <!-- ======================================================= -->
 
-## Destroying a semaphore
+## Xóa Một Semaphore
 
-There are two ways to get rid of a semaphore: one is to use the Unix
-command `ipcrm`. The other is through a call to `semctl()` with the
-`cmd` set to `IPC_RMID`.
+Có hai cách để loại bỏ semaphore: một là dùng lệnh Unix `ipcrm`. Cách
+kia là thông qua lệnh gọi `semctl()` với `cmd` được đặt thành `IPC_RMID`.
 
-Basically, you want to call `semctl()` and set `semid` to the semaphore
-ID you want to axe. The `cmd` should be set to `IPC_RMID`, which tells
-`semctl()` to remove this semaphore set. The parameter `semnum` has no
-meaning in the `IPC_RMID` context and can just be set to zero.
+Về cơ bản, bạn muốn gọi `semctl()` và đặt `semid` thành ID semaphore
+mà bạn muốn xóa. `cmd` nên được đặt thành `IPC_RMID`, cho `semctl()`
+biết xóa tập hợp semaphore này. Tham số `semnum` không có nghĩa gì trong
+bối cảnh `IPC_RMID` và có thể chỉ cần đặt thành không.
 
-Here's an example call to torch a semaphore set:
+Đây là một lệnh gọi ví dụ để xóa một tập hợp semaphore:
 
 ``` {.c}
 int semid; 
@@ -272,28 +264,27 @@ semid = semget(...);
 semctl(semid, 0, IPC_RMID);
 ```
 
-Easy peasy.
+Dễ như ăn kẹo.
 
 <!-- ======================================================= -->
 <!-- Semaphore: Sample Programs -->
 <!-- ======================================================= -->
 
-## Sample Programs
+## Chương Trình Mẫu
 
-There are two of them. The first, `semdemo.c`, creates the semaphore if
-necessary, and performs some pretend file locking on it in a demo very
-much like that in the [File Locking](#flocking) document. The second
-program, `semrm.c` is used to destroy the semaphore (again, `ipcrm`
-could be used to accomplish this.)
+Có hai chương trình. Chương trình đầu tiên, `semdemo.c`, tạo semaphore
+nếu cần thiết, và thực hiện một số thao tác khóa file giả tạo trên nó
+trong một bài trình diễn rất giống bài trong tài liệu [Khóa File](#flocking).
+Chương trình thứ hai, `semrm.c` dùng để xóa semaphore (một lần nữa,
+`ipcrm` có thể được dùng để thực hiện điều này.)
 
-The idea is to run run `semdemo.c` in a few windows and see how all the
-processes interact. When you're done, use `semrm.c` to remove the
-semaphore. You could also try removing the semaphore while running
-`semdemo.c` just to see what kinds of errors are generated.
+Ý tưởng là chạy `semdemo.c` trong một vài cửa sổ và xem tất cả các tiến
+trình tương tác như thế nào. Khi xong, dùng `semrm.c` để xóa semaphore.
+Bạn cũng có thể thử xóa semaphore trong khi đang chạy `semdemo.c` chỉ
+để xem các loại lỗi nào được tạo ra.
 
-Here's [flx[`semdemo.c`|semdemo.c]], including a function named
-`initsem()` that gets around the semaphore race conditions,
-Stevens-style:
+Đây là [flx[`semdemo.c`|semdemo.c]], bao gồm một hàm có tên `initsem()`
+vượt qua các điều kiện race của semaphore theo phong cách Stevens:
 
 ``` {.c .numberLines}
 #include <stdlib.h>
@@ -418,8 +409,7 @@ int main(void)
 }
 ```
 
-Here's [flx[`semrm.c`|semrm.c]] for removing the semaphore when you're
-done:
+Đây là [flx[`semrm.c`|semrm.c]] để xóa semaphore khi bạn xong:
 
 ``` {.c .numberLines}
 #include <stdlib.h>
@@ -455,23 +445,22 @@ int main(void)
 }
 ```
 
-Isn't that fun! I'm sure you'll give up Quake^[Or whatever the current
-addictive FPS game is these days.] just to play with this semaphore
-stuff all day long!
+Thật thú vị không! Tôi chắc chắn bạn sẽ từ bỏ Quake^[Hoặc bất kỳ trò
+chơi FPS gây nghiện nào hiện tại.] chỉ để chơi với những thứ semaphore
+này cả ngày!
 
 <!-- ======================================================= -->
 <!-- Semaphore summary -->
 <!-- ======================================================= -->
 
-## Summary
+## Tóm Tắt
 
-I might have understated the usefulness of semaphores. I assure you,
-they're very very very useful in a concurrency situation. They're often
-faster than regular file locks, too. Also, you can use them on other
-things that aren't files, such as [Shared Memory Segments](#svshm)! In
-fact, it is sometimes hard to live without them, quite frankly.
+Có lẽ tôi đã nói nhẹ về tính hữu dụng của semaphore. Tôi đảm bảo với
+bạn, chúng rất rất rất hữu ích trong tình huống đồng thời. Chúng thường
+còn nhanh hơn cả khóa file thông thường. Ngoài ra, bạn có thể dùng
+chúng trên những thứ khác không phải file, chẳng hạn như [Vùng Nhớ
+Dùng Chung](#svshm)! Thực ra, đôi khi khó mà sống thiếu chúng, thẳng
+thắn mà nói.
 
-Whenever you have multiple processes running through a critical
-section of code, man, you need semaphores. You have zillions of
-them---you might as well use 'em.
-
+Bất cứ khi nào bạn có nhiều tiến trình chạy qua một đoạn code quan
+trọng, bạn cần semaphore. Bạn có hàng tỷ cái---cứ dùng chúng đi.
