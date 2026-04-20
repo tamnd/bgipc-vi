@@ -3,98 +3,100 @@
 # vim: ts=4:sw=4:nosi:et:tw=72
 -->
 
-# POSIX Message Queues {#mq}
+# Hàng Đợi Tin Nhắn POSIX {#mq}
 
-Back in the day, we just had [System V message queues](#svmq), but the
-friendly folks at [flw[POSIX|POSIX]] have standardized these things
-somewhat so we can make more portable use of them.
+Ngày xưa, chúng ta chỉ có [hàng đợi tin nhắn System V](#svmq), nhưng
+những người bạn tốt bụng tại [flw[POSIX|POSIX]] đã chuẩn hóa những thứ
+này một phần để ta có thể sử dụng chúng một cách khả chuyển hơn.
 
-And so here we are today in the glorious year %YEAR% and we'll soon see the
-destructive power of this fully operational battle station. [*Darth
-Vadar breathing sounds*].
+Và vậy là hôm nay chúng ta đang ở đây trong năm huy hoàng %YEAR% và sắp
+chứng kiến sức mạnh hủy diệt của trạm chiến đấu đã hoàn toàn đi vào
+hoạt động. [*Tiếng thở của Darth Vader*].
 
-Sorry. Got carried away, there. What are we doing?
+Xin lỗi. Tôi bị cuốn vào rồi. Chúng ta đang làm gì thế nhỉ?
 
-## What is a Message Queue?
+## Hàng Đợi Tin Nhắn Là Gì?
 
-In general, we'd like to be able to send out *messages* (arbitrary
-chunks of bytes) into *something*, and then have other processes receive
-those messages.
+Nói chung, ta muốn có thể gửi các *tin nhắn* (những khối byte tùy ý)
+vào *một cái gì đó*, và sau đó để các tiến trình khác nhận những tin
+nhắn đó.
 
-And maybe we'd like those to be in some kind of order, like
-*first-in-first-out* like those FIFO things we've already talked about.
+Và có lẽ ta muốn chúng được sắp xếp theo một thứ tự nào đó, chẳng hạn
+*vào trước ra trước* như những thứ FIFO mà ta đã bàn đến.
 
-Luckily, a queue is a FIFO data structure, and also luckily we have a
-message we want to send. Message. Queue. Message queue!
+May mắn thay, một queue (hàng đợi) là cấu trúc dữ liệu FIFO, và cũng
+may mắn là ta có một tin nhắn muốn gửi. Tin nhắn. Hàng đợi. Hàng đợi
+tin nhắn!
 
-So we'll have one (or many) *senders* pouring messages into the queue at
-one end, and we'll have one (or many) *receivers* reading messages out
-of the queue at the other end.
+Vậy là ta sẽ có một (hoặc nhiều) *sender* (người gửi) đổ tin nhắn vào
+hàng đợi ở một đầu, và ta sẽ có một (hoặc nhiều) *receiver* (người nhận)
+đọc tin nhắn ra từ hàng đợi ở đầu kia.
 
-## Why This?
+## Tại Sao Dùng Cái Này?
 
-We have some benefits over a vanilla FIFO here. One is that messages
-won't be split up (interleaved) if there are a lot of senders trying to
-send at once. (Which could happen in a FIFO with larger messages.)
+Ta có một số ưu điểm so với FIFO thông thường. Một là các tin nhắn sẽ
+không bị chia tách (xen kẽ) nếu có nhiều sender cùng gửi một lúc. (Điều
+này có thể xảy ra trong FIFO với các tin nhắn lớn hơn.)
 
-Another is that we can give these messages a _priority level_ to control
-the order in which they are delivered.
+Ưu điểm khác là ta có thể gán cho các tin nhắn một _mức ưu tiên_ để
+kiểm soát thứ tự chúng được giao.
 
-Finally, like FIFOs, these queues can be joined or left at any time. New
-processes merely have to open the queue by a well-known
-previously-agreed-upon name. More on that soon.
+Cuối cùng, giống như FIFO, các hàng đợi này có thể được tham gia hoặc
+rời đi bất cứ lúc nào. Các tiến trình mới chỉ cần mở hàng đợi bằng một
+tên đã được thỏa thuận trước và đều biết. Sẽ nói thêm về điều đó sau.
 
-## Priority
+## Ưu Tiên
 
-Every time you send a message to a queue, you attach a _priority_ that
-indicates (vaguely) how quickly it should be delivered. The priority is
-just an unsigned integer, where `0` is the lowest priority, and some
-larger integer, indicated by `MQ_PRIO_MAX` is the highest.
+Mỗi lần bạn gửi một tin nhắn vào hàng đợi, bạn gắn kèm một _priority_
+(ưu tiên) cho biết (một cách mơ hồ) tin nhắn đó nên được giao nhanh như
+thế nào. Ưu tiên chỉ là một số nguyên không dấu, trong đó `0` là ưu tiên
+thấp nhất, và một số nguyên lớn hơn nào đó, được chỉ định bởi
+`MQ_PRIO_MAX`, là cao nhất.
 
-The spec doesn't spell out the highest level other than that
-system-dependent macro value. The Linux man page suggests keeping
-priority levels between 0 and 31, inclusive, to remain as portable as
-possible.
+Đặc tả không nêu rõ mức cao nhất ngoài giá trị macro phụ thuộc hệ thống
+đó. Trang man của Linux đề xuất giữ mức ưu tiên trong khoảng 0 đến 31,
+bao gồm cả hai đầu, để đảm bảo khả năng khả chuyển tối đa.
 
-And if you do need more than 32 priority levels... honestly, what are
-you building?
+Và nếu bạn thực sự cần hơn 32 mức ưu tiên... thật ra, bạn đang xây
+dựng cái gì vậy?
 
-*Anyway*, when you receive a message, you'll get the one that was sent
-with the highest priority (even if it was sent later that others with
-lower priorities). If there's a tie for highest priority, the messages
-battle to the death.
+*Dù sao*, khi bạn nhận một tin nhắn, bạn sẽ nhận được cái được gửi với
+ưu tiên cao nhất (dù nó được gửi muộn hơn các tin nhắn có ưu tiên thấp
+hơn). Nếu có hai tin nhắn cùng mức ưu tiên cao nhất, chúng đấu tay đôi
+với nhau đến cùng.
 
-No, that's not right. If there's a tie in priority, the tied messages
-are de-queued in the order they were sent (FIFO).
+Không, đó không đúng. Nếu có sự ngang bằng về ưu tiên, các tin nhắn bị
+buộc được lấy ra theo thứ tự chúng được gửi (FIFO).
 
-## Identifying a Queue
+## Xác Định Một Hàng Đợi
 
-Message queues are identified by a _name_, which is a string that should
-begin with a slash (`/`) and not have any other slashes in it. (Things
-get all "implementation defined" if you violate those rules.)
+Hàng đợi tin nhắn được xác định bởi một _name_ (tên), là một chuỗi nên
+bắt đầu bằng dấu gạch chéo (`/`) và không có dấu gạch chéo nào khác
+trong đó. (Mọi thứ trở nên "phụ thuộc cài đặt" nếu bạn vi phạm những
+quy tắc đó.)
 
-So for example, here's a queue name: `/waco_kid`. Very exciting. All the
-programs who wanted to use that queue would have to know that name in
-advance so they could open it.
+Ví dụ, đây là một tên hàng đợi: `/waco_kid`. Rất thú vị. Tất cả các
+chương trình muốn sử dụng hàng đợi đó phải biết tên đó từ trước để có
+thể mở nó.
 
-## General Approach
+## Cách Tiếp Cận Tổng Quát
 
-### Open the Queue
+### Mở Hàng Đợi
 
-Both the sender and receiver have to the do the same thing up front:
-open (connect to) the message queue. This is done with the `mq_open()`
-system call. (And here you'll see the `mqueue.h` header file you'll need
-for all these.)
+Cả sender và receiver đều phải làm điều tương tự ở bước đầu: mở (kết
+nối tới) hàng đợi tin nhắn. Điều này được thực hiện bằng system call
+`mq_open()`. (Và ở đây bạn sẽ thấy file header `mqueue.h` mà bạn cần
+cho tất cả những thứ này.)
 
-The queue is also created with this call. If it doesn't yet exist and
-the proper flags and arguments are sent to `mq_open()`, the queue will
-be created then.
+Hàng đợi cũng được tạo ra bằng lệnh gọi này. Nếu nó chưa tồn tại và
+các flag cùng đối số phù hợp được truyền vào `mq_open()`, hàng đợi sẽ
+được tạo ra lúc đó.
 
-It's notable at this time that the queue you create never goes away
-until you throw away your computer or you _unlink_ the queue, whichever
-comes first. More on unlinking later on.
+Điều đáng chú ý ở đây là hàng đợi bạn tạo không bao giờ biến mất cho
+đến khi bạn vứt máy tính đi hoặc bạn _unlink_ hàng đợi đó, tùy cái nào
+đến trước. Sẽ nói thêm về unlink sau.
 
-Let's see this syscall!
+Hãy xem syscall này!
 
 ``` {.c}
 #include <mqueue.h>
@@ -103,50 +105,48 @@ Let's see this syscall!
 mqd_t mq_open(const char *name, int oflag, ...);
 ```
 
-So you give it the name as the first argument, e.g. `/waco_kid` and then
-you pass some flags in `oflag`. And depending on the flags, maybe you
-pass some more stuff with those scary ellipses these at the end.
+Bạn truyền tên vào đối số đầu tiên, ví dụ `/waco_kid`, rồi truyền một
+số flag vào `oflag`. Và tùy theo flag, bạn có thể truyền thêm một số
+thứ với dấu chấm lửng đáng sợ kia ở cuối.
 
-The flags are bitwise-ORd together. First, you have to say if you want
-to open it for reading (receiving), writing (sending), or both. Also,
-you can tell it if you want to create the queue if it doesn't exist. And
-you can tell it if the queue should be _blocking_ or not. More on that
-later.
+Các flag được kết hợp bằng OR theo bit. Đầu tiên, bạn phải nói rõ muốn
+mở để đọc (nhận), ghi (gửi), hay cả hai. Ngoài ra, bạn có thể yêu cầu
+tạo hàng đợi nếu nó chưa tồn tại. Và bạn có thể chỉ định hàng đợi có
+nên ở chế độ _blocking_ hay không. Sẽ nói thêm về điều đó sau.
 
-|Flag|Description|
+|Flag|Mô tả|
 |-|-|
-|`O_RDONLY`|Open for receiving only|
-|`O_WRONLY`|Open for sending only|
-|`O_RDWR`|Open for both receiving and sending|
-|`O_CREAT`|Create the queue if it doesn't exist|
-|`O_NONBLOCK`|Create a non-blocking queue|
+|`O_RDONLY`|Mở chỉ để nhận|
+|`O_WRONLY`|Mở chỉ để gửi|
+|`O_RDWR`|Mở cho cả nhận và gửi|
+|`O_CREAT`|Tạo hàng đợi nếu chưa tồn tại|
+|`O_NONBLOCK`|Tạo hàng đợi không blocking|
 
-For example:
+Ví dụ:
 
 ``` {.c}
 mqd_t mq = mq_open("/waco_kid", O_RDONLY);
 ```
 
-But here we get to those ellipses! If we specify `O_CREAT`, we get to do
-more things!
+Nhưng ở đây ta đến phần dấu chấm lửng! Nếu ta chỉ định `O_CREAT`, ta
+có thể làm thêm nhiều thứ!
 
-In particular, we get to set the permissions (who is allowed to connect
-to this), which we do just like any other standard Unix file
-permissions. In the example, below, we use `0644` permissions, which is
-`rw-r--r--`. And then I put a `NULL` for the fourth argument—we'll soon
-see what that means.
+Cụ thể, ta có thể đặt quyền (ai được phép kết nối vào), điều ta làm
+giống như bất kỳ quyền file Unix tiêu chuẩn nào. Trong ví dụ dưới đây,
+ta dùng quyền `0644`, tức là `rw-r--r--`. Rồi tôi đặt `NULL` cho đối
+số thứ tư — ta sẽ sớm thấy ý nghĩa của nó.
 
 ``` {.c}
 mqd_t mqdes = mq_open("/waco_kid", O_RDONLY | O_CREAT, 0644, NULL);
 ```
 
-As is, that'll create a message queue! And it does it with a default
-maximum number of messages and maximum message size.
+Như vậy, lệnh đó sẽ tạo một hàng đợi tin nhắn! Và nó làm vậy với số
+lượng tin nhắn tối đa và kích thước tin nhắn tối đa mặc định.
 
-What if you want something other than the default? You can use that
-fourth argument to specify with a `struct mq_attr`.
+Nếu bạn muốn thứ gì đó khác so với mặc định thì sao? Bạn có thể dùng
+đối số thứ tư để chỉ định bằng `struct mq_attr`.
 
-Here are the pertinent fields for queue creation:
+Đây là các trường liên quan cho việc tạo hàng đợi:
 
 ``` {.c}
 struct mq_attr {
@@ -155,22 +155,21 @@ struct mq_attr {
 }
 ```
 
-You can control how many messages can be in the queue at a time with
-`mq_maxmsg`. There's no definite maximum for this in the spec, but the
-most you can specify on my Linux machine is 10. That seems kind of low,
-but you have to imagine that the kernel is just holding onto all these
-messages until someone receives them, and it doesn't want to just use
-all your memory doing so. If things are working smoothly, other
-processes should be consuming the messages as quickly as you're
-producing them.
+Bạn có thể kiểm soát số lượng tin nhắn tối đa có thể có trong hàng đợi
+cùng một lúc với `mq_maxmsg`. Không có giá trị tối đa cố định trong đặc
+tả, nhưng số tối đa bạn có thể chỉ định trên máy Linux của tôi là 10.
+Có vẻ khá thấp, nhưng bạn phải tưởng tượng rằng kernel đang giữ tất cả
+những tin nhắn này cho đến khi ai đó nhận chúng, và nó không muốn dùng
+hết bộ nhớ của bạn để làm điều đó. Nếu mọi thứ hoạt động trơn tru, các
+tiến trình khác sẽ tiêu thụ tin nhắn nhanh như khi bạn tạo ra chúng.
 
-> And, as we all know, *everything **always** runs smoothly!*
+> Và, như chúng ta đều biết, *mọi thứ **luôn luôn** chạy trơn tru!*
 
-In addition, each message can't be larger than the `mq_msqsize`. Again,
-no defined maximum, but on my Linux machine it's 8 KB.
+Ngoài ra, mỗi tin nhắn không thể lớn hơn `mq_msgsize`. Lại không có
+giá trị tối đa được định nghĩa, nhưng trên máy Linux của tôi là 8 KB.
 
-> **You can find these out for yourself** on Linux by looking at some
-> files in `/proc`
+> **Bạn có thể tự tìm hiểu điều này** trên Linux bằng cách xem một số
+> file trong `/proc`
 >
 > ``` {.default}
 > cat /proc/sys/fs/mqueue/msgsize_max   # max mq_msgsize
@@ -180,13 +179,12 @@ no defined maximum, but on my Linux machine it's 8 KB.
 
 <!-- ` -->
 
-We'll see what else we can do with a `struct mq_attr` later, including
-inspecting how many messages there are in the queue.
+Ta sẽ thấy những gì ta có thể làm thêm với `struct mq_attr` sau, bao
+gồm kiểm tra xem có bao nhiêu tin nhắn trong hàng đợi.
 
-### Send Things to the Queue
+### Gửi Thứ Gì Đó Vào Hàng Đợi
 
-OK! Now that we have the queue open and created, we can send stuff to
-it!
+OK! Bây giờ ta đã mở và tạo hàng đợi, ta có thể gửi đồ vào nó!
 
 ``` {.c}
 #include <mqueue.h>
@@ -195,11 +193,11 @@ int mq_send(mqd_t mqdes, const char *msg_ptr,
             size_t msg_len, unsigned int msg_prio);
 ```
 
-That sends the message pointed to by `msg_ptr` (which is `msg_len` bytes
-long) to the queue identifier we got back from `mq_open()`. And it sends
-it with priority `msg_prio`.
+Lệnh đó gửi tin nhắn trỏ bởi `msg_ptr` (có độ dài `msg_len` byte) vào
+định danh hàng đợi ta lấy từ `mq_open()`. Và nó gửi với ưu tiên
+`msg_prio`.
 
-That's it. Here's an example with no error checking:
+Vậy thôi. Đây là một ví dụ không có kiểm tra lỗi:
 
 ``` {.c}
 mqd_t mqdes = mq_open("/waco_kid", O_RDONLY | O_CREAT, 0644, NULL);
@@ -207,12 +205,12 @@ mqd_t mqdes = mq_open("/waco_kid", O_RDONLY | O_CREAT, 0644, NULL);
 mq_send(mqdes, "Play chess", 10, 0);
 ```
 
-If you send when the queue is full, it will block until something
-removes a message from the queue to make room.
+Nếu bạn gửi khi hàng đợi đầy, lệnh gọi sẽ block cho đến khi có gì đó
+xóa một tin nhắn khỏi hàng đợi để nhường chỗ.
 
-### Receive Things from the Queue
+### Nhận Thứ Gì Đó Từ Hàng Đợi
 
-The flip-side is receiving things. Pretty much the same deal.
+Chiều ngược lại là nhận. Về cơ bản giống nhau.
 
 ``` {.c}
 #include <mqueue.h>
@@ -221,15 +219,15 @@ ssize_t mq_receive(mqd_t mqdes, char msg_ptr[msg_len],
                    size_t msg_len, unsigned int *msg_prio);
 ```
 
-That will receive a message from the queue identified by `mqdes`. It
-stores the message in `msg_ptr`, which better be a buffer of at least
-`msg_len` bytes in size, or else. Oh, and `msg_len` better be at least
-as big as the maximum message size (that you optionally set with
-`mq_open()`), or else, again.
+Lệnh đó sẽ nhận một tin nhắn từ hàng đợi được xác định bởi `mqdes`. Nó
+lưu tin nhắn vào `msg_ptr`, cái này phải là một buffer ít nhất `msg_len`
+byte, nếu không thì có chuyện đấy. Ồ, và `msg_len` cũng phải ít nhất
+bằng kích thước tin nhắn tối đa (mà bạn tùy chọn đặt với `mq_open()`),
+không thì cũng có chuyện.
 
-Finally, if you're interested in the priority of this message, you can
-pass a pointer to an `unsigned int` in `msg_prio` to hold it. Or you can
-pass `NULL` for that argument if you don't care.
+Cuối cùng, nếu bạn quan tâm đến ưu tiên của tin nhắn này, bạn có thể
+truyền con trỏ tới một `unsigned int` trong `msg_prio` để giữ nó. Hoặc
+bạn có thể truyền `NULL` cho đối số đó nếu không quan tâm.
 
 ``` {.c}
 mqd_t mqdes = mq_open("/waco_kid", O_RDONLY);
@@ -244,12 +242,12 @@ recv_len = mq_receive(mqdes, msg, sizeof msg, &msg_prio);
 write(1, msg, recv_len);
 ```
 
-Again, you should error-check those.
+Nhắc lại, bạn nên kiểm tra lỗi cho những lệnh đó.
 
-### Close the Queue
+### Đóng Hàng Đợi
 
-When you're done with the queue *in one particular process*, you can
-close it. (The queue will continue to exist until unlinked.)
+Khi bạn dùng xong hàng đợi *trong một tiến trình cụ thể*, bạn có thể
+đóng nó lại. (Hàng đợi sẽ tiếp tục tồn tại cho đến khi bị unlink.)
 
 ``` {.c}
 #include <mqueue.h>
@@ -257,25 +255,25 @@ close it. (The queue will continue to exist until unlinked.)
 int mq_close(mqd_t mqdes);
 ```
 
-Pretty straightforward. Here's an example for completeness:
+Khá đơn giản. Đây là một ví dụ cho đầy đủ:
 
 ``` {.c}
 mqd_t mqdes = mq_open("/waco_kid", O_RDONLY);
 
 // ...
-// Do queue things for a while until we're done.
+// Làm việc với hàng đợi một lúc rồi xong.
 // ...
 
 mq_close(mqdes);
 ```
 
-## Example Sender
+## Ví Dụ Sender
 
-Let's get a complete example. This code will prompt you for a message
-priority and message separated by a space, like `5 Hello`. Enter a blank
-line to quit.
+Hãy làm một ví dụ hoàn chỉnh. Đoạn code này sẽ nhắc bạn nhập ưu tiên
+và tin nhắn cách nhau bằng dấu cách, kiểu như `5 Hello`. Nhập dòng
+trắng để thoát.
 
-And it'll send the null-terminated string out to the queue.
+Và nó sẽ gửi chuỗi kết thúc null ra hàng đợi.
 
 ``` {.c}
 #include <stdio.h>
@@ -343,9 +341,9 @@ int main(void)
 }
 ```
 
-Run that and send some stuff. Note that the maximum number of messages
-in the queue at a time is set to `3`, so when you try to send the fourth
-thing, it'll block until you fire up a receiver.
+Chạy chương trình đó và gửi một vài thứ. Lưu ý rằng số lượng tin nhắn
+tối đa trong hàng đợi tại một thời điểm được đặt là `3`, vì vậy khi bạn
+cố gửi thứ thứ tư, nó sẽ block cho đến khi bạn khởi động một receiver.
 
 ``` {.default}
 $ ./mq_sender
@@ -359,12 +357,12 @@ $ ./mq_sender
   sending "a fourth message" (17 bytes) at priority 2
 ```
 
-And there I've blocked. Let it just sit there for now, and let's fire up
-a receiver in another terminal.
+Và ở đó tôi đã bị block. Cứ để nó ngồi đó, và hãy khởi động một
+receiver trong terminal khác.
 
-## Example Receiver
+## Ví Dụ Receiver
 
-Here's a receiver of messages.
+Đây là một receiver nhận tin nhắn.
 
 ``` {.c}
 #include <fcntl.h>
@@ -400,15 +398,14 @@ int main(void)
 }
 ```
 
-Assuming that you still have the sender from above running in one
-window, and you just launched this one in another window, you'll
-immediately see two things.
+Giả sử bạn vẫn đang chạy sender ở trên trong một cửa sổ, và bạn vừa
+khởi động cái này trong cửa sổ khác, bạn sẽ thấy ngay hai điều.
 
-One is that the receiver will gobble up and print all the messages in
-the queue. The other is the sender will immediately unblock and give you
-a chance to type another message in.
+Một là receiver sẽ ngốm hết và in ra tất cả các tin nhắn trong hàng
+đợi. Điều kia là sender sẽ ngay lập tức được unblock và cho bạn cơ hội
+gõ thêm tin nhắn khác.
 
-The receiver should print this:
+Receiver sẽ in ra:
 
 ``` {.default}
 $ ./mq_receiver
@@ -418,38 +415,38 @@ $ ./mq_receiver
   received "low priority" (13 bytes) at priority 0
 ```
 
-Notice the order! The fourth message we sent actually arrived second.
-Why? Because it's priority 2, so it gets received before anything of
-lower priority, even if those lower-priority messages were sent earlier.
-Line-cutter!
+Chú ý thứ tự! Tin nhắn thứ tư ta gửi thực ra đến thứ hai. Tại sao? Vì
+nó có ưu tiên 2, nên nó được nhận trước bất cứ thứ gì có ưu tiên thấp
+hơn, dù những tin nhắn ưu tiên thấp hơn đó được gửi trước. Kẻ chen
+hàng!
 
-And at this point, if you type things in the sender, they should
-immediately arrive on the receiver.
+Và lúc này, nếu bạn gõ gì đó ở sender, chúng sẽ ngay lập tức xuất hiện
+trên receiver.
 
-## Multiple Processes
+## Nhiều Tiến Trình
 
-If you have multiple senders, they'll all try to dump messages into the
-same queue as makes visceral sense. No biggie.
+Nếu bạn có nhiều sender, chúng sẽ đổ tin nhắn vào cùng một hàng đợi
+theo cách trực quan. Không vấn đề gì.
 
-If you have multiple receivers, I'm not actually sure what the
-specification says about it. But when I run it on Linux, it seems like
-receivers alternate receiving messages.
+Nếu bạn có nhiều receiver, tôi thực ra không chắc đặc tả nói gì về
+điều đó. Nhưng khi tôi chạy trên Linux, có vẻ như các receiver thay
+nhau nhận tin nhắn.
 
-And this is sensible behavior. Maybe you have one process creating jobs
-and putting them in the queue, and you have multiple processes running
-jobs, all of which reach into the queue for the next thing to do.
+Và đây là hành vi hợp lý. Có lẽ bạn có một tiến trình tạo ra các công
+việc và đưa chúng vào hàng đợi, và bạn có nhiều tiến trình chạy các
+công việc đó, tất cả đều với tay vào hàng đợi để lấy việc tiếp theo cần
+làm.
 
-Try it! Open yet another window, fire up a second receiver, and see
-where the messages from the sender go.
+Hãy thử! Mở thêm một cửa sổ nữa, khởi động receiver thứ hai, và xem
+các tin nhắn từ sender đi đâu.
 
-## Unlinking (Deleting) the Queue
+## Unlink (Xóa) Hàng Đợi
 
-If all the programs `mq_close()` the queue, does it go away? ***No***,
-it does not. It stays around. And if there are things in it, they stick
-around, too.
+Nếu tất cả các chương trình `mq_close()` hàng đợi, nó có biến mất
+không? ***Không***, nó không biến mất. Nó vẫn còn đó. Và nếu có tin
+nhắn trong đó, chúng cũng còn đó.
 
-You have to _unlink_ the queue, which is somewhat analogous to deleting
-a file.
+Bạn phải _unlink_ hàng đợi, điều này hơi tương tự như xóa một file.
 
 ``` {.c}
 #include <mqueue.h>
@@ -457,31 +454,31 @@ a file.
 int mq_unlink(const char *name);
 ```
 
-You just give it the same name that you created it with:
+Bạn chỉ cần truyền tên mà bạn đã tạo hàng đợi:
 
 ``` {.c}
 mq_unlink("/waco_kid");
 ```
 
-And that's it.
+Và vậy là xong.
 
-Kind of. There are some devilish details. If you unlink the queue, it
-actually continues to exist until all users of the queue have exited
-or `mq_close()`d it.
+Cũng gần như vậy. Có một vài chi tiết phức tạp. Nếu bạn unlink hàng
+đợi, nó thực sự tiếp tục tồn tại cho đến khi tất cả người dùng của hàng
+đợi đã thoát hoặc `mq_close()` nó.
 
-So if *everyone* has closed it **and** you unlink it, then it's gone.
+Vậy nếu *mọi người* đã đóng nó **và** bạn unlink nó, thì nó biến mất.
 
-Also if you unlink it but keep it open, another process can create a
-different queue of the same name that you used.
+Ngoài ra, nếu bạn unlink nó nhưng vẫn giữ nó mở, một tiến trình khác
+có thể tạo một hàng đợi khác cùng tên mà bạn đã dùng.
 
-> This is actually exactly how file deletion (which uses the `unlink()`
-> syscall) works. You can unlink a file and keep it open; the file
-> doesn't actually get removed from the disk until it has been unlinked
-> **and** all processes have closed it.
+> Đây thực ra chính xác là cách xóa file (sử dụng syscall `unlink()`)
+> hoạt động. Bạn có thể unlink một file và giữ nó mở; file thực sự không
+> bị xóa khỏi đĩa cho đến khi nó được unlink **và** tất cả các tiến
+> trình đã đóng nó.
 
-Here's an example that unlinks the message queue from the previous
-examples. If you don't run this, the queue will persist until you
-reboot.
+Đây là một ví dụ unlink hàng đợi tin nhắn từ các ví dụ trước. Nếu bạn
+không chạy cái này, hàng đợi sẽ tồn tại cho đến khi bạn khởi động lại
+máy.
 
 ``` {.c}
 #include <stdio.h>
@@ -496,12 +493,12 @@ int main(void)
 }
 ```
 
-## Queue Metadata
+## Siêu Dữ Liệu Hàng Đợi
 
-You can look at the attributes for the queue, a couple of which you
-might have set in your `mq_open()` call.
+Bạn có thể xem các thuộc tính của hàng đợi, một vài trong số đó bạn có
+thể đã đặt trong lệnh `mq_open()`.
 
-These calls use our old friend `struct mq_attr` to hold the information.
+Các lệnh gọi này dùng người bạn cũ `struct mq_attr` để giữ thông tin.
 
 ``` {.c}
 struct mq_attr {
@@ -512,19 +509,19 @@ struct mq_attr {
 };
 ```
 
-You can see if the queue was created as non-blocking by looking at
-`mq_flags`. If you bitwise-AND that with `O_NONBLOCK` and get non-zero,
-it's non-blocking. Non, non, non.
+Bạn có thể biết hàng đợi được tạo là non-blocking hay không bằng cách
+nhìn vào `mq_flags`. Nếu bạn AND theo bit với `O_NONBLOCK` và kết quả
+khác không, thì nó là non-blocking. Không, không, không.
 
-And, obviously, you can see how full the queue is by looking at
-`mq_curmsgs`.
+Và, rõ ràng, bạn có thể biết hàng đợi đầy đến mức nào bằng cách nhìn
+vào `mq_curmsgs`.
 
-You can also set the attributes, but the only thing you're allowed to
-set is `mq_flags`. So this is the way you can change a queue from
-blocking to non-blocking or vice-versa. All other fields are ignored
-when setting the attributes.
+Bạn cũng có thể đặt các thuộc tính, nhưng thứ duy nhất bạn được phép
+đặt là `mq_flags`. Vì vậy đây là cách bạn có thể chuyển một hàng đợi
+từ blocking sang non-blocking hoặc ngược lại. Tất cả các trường khác bị
+bỏ qua khi đặt thuộc tính.
 
-Here's the getter and setter:
+Đây là getter và setter:
 
 ``` {.c}
 #include <mqueue.h>
@@ -535,11 +532,11 @@ int mq_setattr(mqd_t mqdes, const struct mq_attr *newattr,
                struct mq_attr *oldattr);
 ```
 
-The setter also gives you the previous attributes back in `oldattr`, if
-it's not `NULL`.
+Setter cũng trả về cho bạn các thuộc tính trước đó trong `oldattr`, nếu
+nó không phải `NULL`.
 
-Here's an example that looks at how many messages in the queue and then
-changes it to non-blocking.
+Đây là một ví dụ xem có bao nhiêu tin nhắn trong hàng đợi rồi chuyển nó
+sang non-blocking.
 
 ``` {.c}
 struct mq_attr attr;
@@ -552,28 +549,28 @@ attr.mq_flags |= O_NONBLOCK;
 mq_setattr(mqdes, &attr, NULL);
 ```
 
-## Time out!
+## Hết Giờ!
 
-I'm not going to get into too much detail here, but with these calls
-that block, we might want to actually only wait a certain amount of time
-before giving up.
+Tôi sẽ không đi vào quá nhiều chi tiết ở đây, nhưng với những lệnh gọi
+block này, đôi khi ta muốn chỉ chờ một khoảng thời gian nhất định trước
+khi bỏ cuộc.
 
-You can use the `mq_timedsend()` and `my_timedreceive()` calls that work
-just like `mq_send()` and `mq_receive()` except they have a `struct
-timespec` at the end that allows you to specify a timeout.
+Bạn có thể dùng các lệnh gọi `mq_timedsend()` và `my_timedreceive()` hoạt
+động giống như `mq_send()` và `mq_receive()` ngoại trừ chúng có thêm
+`struct timespec` ở cuối cho phép bạn chỉ định thời gian chờ tối đa.
 
-If there is a timeout, the call returns `-1` and `errno` is set to
+Nếu hết thời gian, lệnh gọi trả về `-1` và `errno` được đặt thành
 `ETIMEDOUT`.
 
-For a quick refresher, `struct timespec` has two fields:
+Để nhắc nhanh, `struct timespec` có hai trường:
 
-* `tv_sec` number of seconds, plus...
-* `tv_nsec` number of nanoseconds
+* `tv_sec` số giây, cộng thêm...
+* `tv_nsec` số nanosecond
 
-There are 1,000,000,000 (a billion) nanoseconds in a second, so the
-`tv_nsec` field goes from `0` to `999999999`.
+Có 1.000.000.000 (một tỷ) nanosecond trong một giây, vì vậy trường
+`tv_nsec` nằm trong khoảng từ `0` đến `999999999`.
 
-Here's a `struct timespec` that gives you a 3.75-second timeout:
+Đây là một `struct timespec` cho bạn thời gian chờ 3,75 giây:
 
 ``` {.c}
 struct timespec timelimit = {
@@ -582,18 +579,18 @@ struct timespec timelimit = {
 }
 ```
 
-## Blocking and Non-Blocking
+## Blocking và Non-Blocking
 
-In general, if you try to send a message to a queue that's full, the
-`mq_send()` call will block.
+Nói chung, nếu bạn cố gửi một tin nhắn vào hàng đợi đầy, lệnh gọi
+`mq_send()` sẽ block.
 
-And if you try to receive from a queue that is empty with
-`mq_receive()`, the call will block.
+Và nếu bạn cố nhận từ một hàng đợi trống bằng `mq_receive()`, lệnh gọi
+sẽ block.
 
-If that's not desirable, you can set the queue to non-blocking. You do
-this either by passing the `O_NONBLOCK` flag to `mq_open()`, or by
-setting it after the fact with `mq_setattr()`.
+Nếu điều đó không mong muốn, bạn có thể đặt hàng đợi sang non-blocking.
+Bạn làm điều này bằng cách truyền flag `O_NONBLOCK` vào `mq_open()`, hoặc
+bằng cách đặt nó sau đó bằng `mq_setattr()`.
 
-If you set the queue as non-blocking, all those calls that *would* block
-normally will return `-1` and `errno` will be set to `EWOULDBLOCK`.
-
+Nếu bạn đặt hàng đợi là non-blocking, tất cả những lệnh gọi *sẽ* block
+trong trường hợp bình thường sẽ trả về `-1` và `errno` sẽ được đặt thành
+`EWOULDBLOCK`.
