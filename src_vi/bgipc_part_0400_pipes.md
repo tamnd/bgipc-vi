@@ -7,44 +7,42 @@
 <!-- Pipes -->
 <!-- ======================================================= -->
 
-# Pipes {#pipes}
+# Pipes (Đường ống) {#pipes}
 
-There is no form of IPC that is simpler than pipes. Implemented on every
-flavor of Unix, `pipe()` and [`fork()`](#fork) make up the functionality
-behind the "`|`" in "`ls | more`". They are marginally useful for cool
-things, but are a good way to learn about basic methods of IPC.
+Không có hình thức IPC nào đơn giản hơn pipe. Được triển khai trên mọi
+hương vị Unix, `pipe()` và [`fork()`](#fork) tạo nên chức năng đằng sau
+"`|`" trong "`ls | more`". Chúng hữu ích một cách vừa phải cho những thứ
+hay ho, nhưng là cách học tốt về các phương pháp IPC cơ bản.
 
-Since they're so very very easy, I shant spend much time on them. We'll
-just have some examples and stuff.
+Vì chúng quá quá dễ, tôi sẽ không dành nhiều thời gian cho chúng. Chúng
+ta sẽ chỉ xem qua vài ví dụ.
 
-## "These pipes are clean!"
+## "Những cái pipe này sạch đấy!"
 
-Wait! Not so fast. I might need to define a "file descriptor" at this
-point. Let me put it this way: you know about "`FILE*`" from `stdio.h`,
-right? You know how you have all those nice functions like `fopen()`,
-`fclose()`, `fwrite()`, and so on? Well, those  are actually high level
-functions that are implemented using _file descriptors_, which use
-system calls such as `open()`, `creat()`, `close()`, and `write()`.
-File descriptors are simply `ints` that are analogous to `FILE*`'s in
-`stdio.h`.
+Đợi đã! Không nhanh vậy. Tôi có thể cần định nghĩa "file descriptor" ở
+điểm này. Để tôi nói thế này: bạn biết về "`FILE*`" từ `stdio.h` chứ?
+Bạn biết cách bạn có tất cả những hàm hay ho như `fopen()`, `fclose()`,
+`fwrite()`, v.v.? Thực ra, những hàm đó là các hàm cấp cao được triển
+khai bằng _file descriptor_, sử dụng các system call như `open()`,
+`creat()`, `close()`, và `write()`. File descriptor đơn giản là các
+`int` tương tự với `FILE*` trong `stdio.h`.
 
-For example, `stdin` is file descriptor "0", `stdout` is "1", and
-`stderr` is "2". Likewise, any files you open using `fopen()` get their
-own file descriptor, although this detail is hidden from you. (This file
-descriptor can be retrived from the `FILE*` by using the `fileno()`
-macro from `stdio.h`.)
+Ví dụ, `stdin` là file descriptor "0", `stdout` là "1", và `stderr` là
+"2". Tương tự, bất kỳ file nào bạn mở bằng `fopen()` đều có file
+descriptor riêng, mặc dù chi tiết này bị ẩn khỏi bạn. (File descriptor
+này có thể được lấy từ `FILE*` bằng cách dùng macro `fileno()` từ
+`stdio.h`.)
 
-![How a pipe is organized.](pipe1.pdf "[How a pipe is organized]")
+![Cách một pipe được tổ chức.](pipe1.pdf "[How a pipe is organized]")
 
-Basically, a call to the `pipe()` function returns a pair of file
-descriptors. One of these descriptors is connected to the write end of
-the pipe, and the other is connected to the read end. Anything can be
-written to the pipe, and read from the other end in the order it came
-in. On many systems, pipes will fill up after you write about 10K to
-them without reading anything out.
+Về cơ bản, một lần gọi hàm `pipe()` trả về một cặp file descriptor. Một
+trong số các descriptor này được kết nối với đầu ghi của pipe, và cái kia
+được kết nối với đầu đọc. Bất cứ thứ gì có thể được ghi vào pipe, và đọc
+từ đầu kia theo thứ tự nó đến. Trên nhiều hệ thống, pipe sẽ đầy sau khi
+bạn ghi khoảng 10K vào chúng mà không đọc gì ra.
 
-As a [flx[useless example|pipe1.c]], the following program creates,
-writes to, and reads from a pipe.
+Như một [flx[ví dụ vô dụng|pipe1.c]], chương trình sau tạo, ghi vào, và
+đọc từ một pipe.
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -72,26 +70,26 @@ int main(void)
 }
 ```
 
-As you can see, `pipe()` takes an array of two `int`s as an argument.
-Assuming no errors, it connects two file descriptors and returns them in
-the array. The first element of the array is the reading-end of the
-pipe, the second is the writing end.
+Như bạn có thể thấy, `pipe()` nhận một mảng hai `int` làm đối số. Giả
+sử không có lỗi, nó kết nối hai file descriptor và trả về chúng trong
+mảng. Phần tử đầu tiên của mảng là đầu đọc của pipe, phần tử thứ hai
+là đầu ghi.
 
-## `fork()` and `pipe()`---you have the power!
+## `fork()` và `pipe()`---bạn có quyền lực!
 
-From the above example, it's pretty hard to see how these would even be
-useful. Well, since this is an IPC document, let's put a `fork()` in the
-mix and see what happens. Pretend that you are a top federal agent
-assigned to get a child process to send the word "test" to the parent.
-Not very glamorous, but no one ever said computer science would be the
-X-Files, Mulder.
+Từ ví dụ trên, khá khó thấy những thứ này có thể hữu ích như thế nào.
+Thực ra, vì đây là tài liệu IPC, hãy đưa `fork()` vào và xem điều gì xảy
+ra. Giả sử bạn là một đặc vụ liên bang hàng đầu được giao nhiệm vụ làm
+cho một tiến trình con gửi từ "test" đến tiến trình cha. Không hào
+hứng lắm, nhưng không ai bảo rằng khoa học máy tính sẽ là X-Files,
+Mulder.
 
-First, we'll have the parent make a pipe. Secondly, we'll `fork()`.
-Now, the `fork()` man page tells us that the child will receive a copy
-of all the parent's file descriptors, and this includes a copy of the
-pipe's file descriptors. _Alors_, the child will be able to send stuff
-to the write-end of the pipe, and the parent will get it off the
-read-end. [flx[Like this|pipe2.c]]:
+Đầu tiên, chúng ta sẽ để tiến trình cha tạo một pipe. Thứ hai, chúng ta
+sẽ `fork()`. Giờ, trang man `fork()` cho biết rằng tiến trình con sẽ
+nhận được bản sao của tất cả file descriptor của cha, và điều này bao
+gồm bản sao của các file descriptor của pipe. _Alors_, tiến trình con
+sẽ có thể gửi thứ gì đó đến đầu ghi của pipe, và tiến trình cha sẽ nhận
+nó từ đầu đọc. [flx[Như thế này|pipe2.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -123,13 +121,12 @@ int main(void)
 }
 ```
 
-Please note, your programs should have a lot more error checking than
-mine do. I leave it out on occasion to help keep things clear.
+Xin lưu ý, chương trình của bạn nên có nhiều kiểm tra lỗi hơn của tôi.
+Tôi đôi khi bỏ qua nó để giúp mọi thứ rõ ràng hơn.
 
-Anyway, this example is just like the previous one, except now we
-`fork()` of a new process and have it write to the pipe, while the
-parent reads from it. The resultant output will be something similar to
-the following:
+Dù sao, ví dụ này giống như ví dụ trước, ngoại trừ bây giờ chúng ta
+`fork()` ra một tiến trình mới và để nó ghi vào pipe, trong khi tiến
+trình cha đọc từ nó. Kết quả đầu ra sẽ tương tự như sau:
 
 ``` {.default}
 PARENT: reading from pipe
@@ -138,34 +135,33 @@ PARENT: reading from pipe
 PARENT: read "test"
 ```
 
-In this case, the parent tried to read from the pipe before the child
-writes to it. When this happens, the parent is said to _block_, or
-sleep, until data arrives to be read. It seems that the parent tried to
-read, went to sleep, the child wrote and exited, and the parent woke up
-and read the data.
+Trong trường hợp này, tiến trình cha cố đọc từ pipe trước khi tiến
+trình con ghi vào đó. Khi điều này xảy ra, tiến trình cha được gọi là
+_block_, hay ngủ, cho đến khi dữ liệu đến để đọc. Có vẻ tiến trình cha
+đã cố đọc, đi ngủ, tiến trình con ghi và thoát, và tiến trình cha thức
+dậy và đọc dữ liệu.
 
-Hurrah!! You've just done some interprocess communication! That was
-dreadfully simple, huh? I'll bet you are still thinking that there
-aren't many uses for `pipe()` and, well, you're probably right. The
-other forms of IPC are generally more useful and are often more exotic.
+Hoan hô!! Bạn vừa thực hiện một số giao tiếp liên tiến trình! Đơn giản
+đến mức kinh hoàng phải không? Tôi cá là bạn vẫn đang nghĩ rằng không
+có nhiều ứng dụng cho `pipe()` và, thực ra, bạn có thể đúng. Các hình
+thức IPC khác thường hữu ích hơn và thường thú vị hơn.
 
-## The search for Pipe as we know it
+## Tìm kiếm Pipe như chúng ta biết
 
-In an effort to make you think that pipes are actually reasonable
-beasts, I'll give you an example of using `pipe()` in a more familiar
-situation. The challenge: implement "`ls | wc -l`" in C.
+Trong nỗ lực khiến bạn nghĩ rằng pipe thực sự là những thú đáng tin
+cậy, tôi sẽ cho bạn một ví dụ về việc sử dụng `pipe()` trong một tình
+huống quen thuộc hơn. Thử thách: triển khai "`ls | wc -l`" trong C.
 
-This requires usage of a couple more functions you may never have heard
-of: `exec()` and `dup()`. The `exec()` family of functions replaces the
-currently running process with whichever one is passed to `exec()`.
-This is the function that we will use to run `ls` and `wc -l`. `dup()`
-takes an open file descriptor and makes a clone (a duplicate) of it.
-This is how we will connect the standard output of the `ls` to the
-standard input of `wc`. See, stdout of `ls` flows into the pipe, and the
-stdin of `wc` flows in from the pipe. The pipe fits right there in the
-middle!
+Điều này yêu cầu sử dụng thêm một vài hàm mà bạn có thể chưa từng nghe
+đến: `exec()` và `dup()`. Họ hàm `exec()` thay thế tiến trình đang chạy
+hiện tại bằng tiến trình nào đó được truyền vào `exec()`. Đây là hàm
+chúng ta sẽ dùng để chạy `ls` và `wc -l`. `dup()` nhận một file
+descriptor đang mở và tạo một bản sao (bản nhân đôi) của nó. Đây là
+cách chúng ta sẽ kết nối standard output của `ls` với standard input của
+`wc`. Thấy đó, stdout của `ls` chảy vào pipe, và stdin của `wc` chảy vào
+từ pipe. Pipe nằm ngay ở giữa!
 
-Anyway, [flx[here is the code|pipe3.c]]:
+Dù sao, [flx[đây là code|pipe3.c]]:
 
 ``` {.c .numberLines}
 #include <stdio.h>
@@ -194,19 +190,18 @@ int main(void)
 }
 ```
 
-I'm going to make another note about the `close()`/`dup()` combination
-since it's pretty weird. `close(1)` frees up file descriptor 1 (standard
-output). `dup(pfds[1])` makes a copy of the write-end of the pipe in the
-first available file descriptor, which is "1", since we just closed
-that. In this way, anything that `ls` writes to standard output (file
-descriptor 1) will instead go to `pfds[1]` (the write end of the pipe).
-The `wc` section of code works the same way, except in reverse.
+Tôi sẽ ghi chú thêm về tổ hợp `close()`/`dup()` vì nó khá kỳ lạ.
+`close(1)` giải phóng file descriptor 1 (standard output). `dup(pfds[1])`
+tạo bản sao của đầu ghi của pipe trong file descriptor đầu tiên có sẵn,
+là "1", vì chúng ta vừa đóng cái đó. Theo cách này, bất cứ thứ gì `ls`
+ghi vào standard output (file descriptor 1) sẽ thay vào đó đi vào
+`pfds[1]` (đầu ghi của pipe). Phần code `wc` hoạt động theo cách tương
+tự, ngoại trừ ngược lại.
 
-## Summary
+## Tóm tắt
 
-There aren't many of these for such a simple topic. In fact, there are
-nearly just about none. Probably the best use for pipes is the one
-you're most accustomed to: sending the standard output of one command to
-the standard input of another. For other uses, it's pretty limiting and
-there are often other IPC techniques that work better.
-
+Không có nhiều điều để nói về một chủ đề đơn giản như vậy. Thực ra, hầu
+như chẳng có gì. Có lẽ cách dùng tốt nhất của pipe là cách bạn quen
+thuộc nhất: gửi standard output của một lệnh đến standard input của lệnh
+khác. Đối với các mục đích sử dụng khác, nó khá hạn chế và thường có
+các kỹ thuật IPC khác hoạt động tốt hơn.
